@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Misterul mierii 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: one-screen game. Night-plum HUD strip on top, the village canvas fills the rest,
+     paper-coloured speech and quiz panels slide over the bottom. Single visual world, no theme switch. */
+  --night:#211c3f;
+  --night-soft:#352d5e;
+  --paper:#fff4d6;
+  --ink:#2b2347;
+  --honey:#f7b21b;
+  --honey-deep:#d98a00;
+  --mint:#23966a;
+  --berry:#cf3f66;
+  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --body:"Andika","Verdana",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--night);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.45;
+  display:flex;flex-direction:column;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;cursor:pointer;border:0}
+button:focus-visible{outline:3px solid var(--honey);outline-offset:2px}
+
+#hud{display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--night);color:var(--paper);flex:none;flex-wrap:wrap}
+#hud h1{font-family:var(--display);font-weight:800;font-size:22px;line-height:1.1;margin:0;color:var(--honey);flex:1 1 auto;text-wrap:balance}
+.chip{font-family:var(--display);font-weight:700;font-size:16px;background:var(--night-soft);border-radius:999px;padding:4px 14px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.chip b{color:var(--honey)}
+#btnCarnet{font-family:var(--display);font-weight:700;font-size:16px;background:var(--honey);color:var(--ink);border-radius:999px;padding:6px 18px;box-shadow:0 3px 0 var(--honey-deep)}
+#btnCarnet:active{transform:translateY(2px);box-shadow:0 1px 0 var(--honey-deep)}
+
+#stage{position:relative;flex:1 1 auto;min-height:0;background:#5d9a50}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+/* touch controls */
+#pad{position:absolute;left:18px;bottom:18px;width:132px;height:132px;border-radius:50%;background:rgba(33,28,63,.38);border:3px solid rgba(255,244,214,.55);touch-action:none}
+#knob{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:var(--honey);box-shadow:0 4px 0 var(--honey-deep);pointer-events:none}
+#btnAct{position:absolute;right:16px;bottom:24px;max-width:calc(100% - 200px);font-family:var(--display);font-weight:800;font-size:19px;background:var(--honey);color:var(--ink);
+  border-radius:20px;padding:14px 22px;box-shadow:0 5px 0 var(--honey-deep),0 10px 22px rgba(0,0,0,.25)}
+#btnAct:active{transform:translateY(3px);box-shadow:0 2px 0 var(--honey-deep)}
+#btnAct small{display:block;font-family:var(--body);font-weight:400;font-size:12px;opacity:.75}
+[hidden]{display:none!important}
+
+/* speech panel */
+#dialog{position:absolute;left:0;right:0;bottom:0;padding:0 16px 16px;display:flex;justify-content:center;pointer-events:none}
+.speech{pointer-events:auto;width:min(720px,100%);background:var(--paper);border:4px solid var(--ink);border-radius:22px;padding:16px 18px;
+  display:grid;grid-template-columns:84px 1fr;gap:6px 14px;box-shadow:0 8px 0 rgba(33,28,63,.35)}
+.speech canvas{width:84px;height:84px;background:#ffe39a;border-radius:16px;border:3px solid var(--ink);grid-row:1 / span 2}
+.speech .who{font-family:var(--display);font-weight:800;font-size:20px;line-height:1.1;color:var(--honey-deep)}
+.speech .who span{font-family:var(--body);font-weight:400;font-size:14px;color:var(--ink);opacity:.7;margin-left:6px}
+.speech p{margin:0;font-size:18px;max-width:60ch}
+.speech .row{grid-column:1 / -1;display:flex;justify-content:flex-end}
+.go{font-family:var(--display);font-weight:800;font-size:18px;background:var(--ink);color:var(--paper);border-radius:14px;padding:8px 22px}
+.go:active{transform:translateY(2px)}
+
+/* modals */
+.veil{position:absolute;inset:0;background:rgba(33,28,63,.62);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+.card{width:min(640px,100%);max-height:100%;overflow:auto;background:var(--paper);border:4px solid var(--ink);border-radius:24px;padding:20px 22px;box-shadow:0 10px 0 rgba(33,28,63,.4)}
+.card h2{font-family:var(--display);font-weight:800;font-size:26px;line-height:1.15;margin:0 0 4px;text-wrap:balance}
+.tagrow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-weight:700;font-size:15px;background:var(--ink);color:var(--honey);border-radius:999px;padding:2px 14px}
+.step{font-size:14px;opacity:.75;font-variant-numeric:tabular-nums}
+#qText{font-size:21px;font-weight:700;margin:6px 0 14px;max-width:48ch}
+#qAns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#qAns button{font-size:19px;font-weight:700;text-align:left;background:#fff;border:3px solid var(--ink);border-radius:16px;padding:12px 14px;display:flex;gap:10px;align-items:baseline;min-height:56px}
+#qAns button i{font-style:normal;font-family:var(--display);font-size:14px;opacity:.5}
+#qAns button.ok{background:var(--mint);color:#fff;border-color:var(--mint)}
+#qAns button.no{background:#f6d5dd;color:var(--berry);border-color:var(--berry);text-decoration:line-through;cursor:default}
+#qFeed{min-height:58px;margin-top:12px;font-size:17px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+#qFeed .good{color:var(--mint);font-weight:700}
+#qFeed .hint{color:var(--berry)}
+@media (max-width:460px){#qAns{grid-template-columns:1fr}#hud h1{font-size:19px;flex-basis:100%}.speech{grid-template-columns:64px 1fr}.speech canvas{width:64px;height:64px}}
+
+.sub{font-family:var(--display);font-weight:700;font-size:18px;margin:16px 0 6px}
+.clues{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.clues li{border-radius:14px;padding:10px 14px;background:#fff;border:3px solid var(--ink);font-size:16px}
+.clues li b{font-family:var(--display);display:block;font-size:17px}
+.clues li.miss{background:transparent;border-style:dashed;opacity:.65}
+.sus{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:10px}
+.sus button{background:#fff;border:3px solid var(--ink);border-radius:16px;padding:8px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:var(--display);font-weight:700;font-size:16px;line-height:1.15;position:relative}
+.sus button canvas{width:72px;height:72px}
+.sus button small{font-family:var(--body);font-weight:400;font-size:12px;opacity:.7}
+.sus button.x{background:#e9e2cf;opacity:.6}
+.sus button.x::after{content:"";position:absolute;left:12%;right:12%;top:38%;height:6px;border-radius:3px;background:var(--berry);transform:rotate(-18deg)}
+.note{font-size:14px;opacity:.75;margin:4px 0 0}
+.foot{display:flex;justify-content:space-between;gap:10px;margin-top:18px;flex-wrap:wrap}
+.ghost{background:transparent;border:3px solid var(--ink);border-radius:14px;padding:6px 16px;font-family:var(--display);font-weight:700;font-size:16px}
+#endStars{font-family:var(--display);font-weight:800;font-size:44px;color:var(--honey-deep);line-height:1.1;font-variant-numeric:tabular-nums}
+#endRank{font-family:var(--display);font-weight:800;font-size:22px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header id="hud">
+  <h1>Misterul mierii 3D</h1>
+  <span class="chip">Indicii <b id="hudClues">0</b>/5</span>
+  <span class="chip">Stele <b id="hudStars">0</b>/15</span>
+  <button id="btnCarnet" type="button">Carnetul detectivului</button>
+</header>
+
+<main id="stage">
+  <canvas id="game" aria-label="Satul Stupina în 3D. Mergi cu săgețile sau cu maneta și vorbește cu personajele."></canvas>
+
+  <div id="pad" aria-label="Manetă de mers: trage cu degetul în direcția dorită"><div id="knob"></div></div>
+  <button id="btnAct" type="button" hidden></button>
+
+  <div id="dialog" hidden>
+    <div class="speech">
+      <canvas id="dPic" width="168" height="168"></canvas>
+      <div class="who" id="dWho"></div>
+      <p id="dText"></p>
+      <div class="row"><button class="go" id="dNext" type="button">Mai departe</button></div>
+    </div>
+  </div>
+
+  <div class="veil" id="quiz" hidden>
+    <div class="card">
+      <div class="tagrow"><span class="tag" id="qTag"></span><span class="step" id="qStep"></span></div>
+      <div id="qText"></div>
+      <div id="qAns"></div>
+      <div id="qFeed"></div>
+    </div>
+  </div>
+
+  <div class="veil" id="carnet" hidden>
+    <div class="card">
+      <h2>Carnetul detectivului</h2>
+      <div class="sub">Indicii găsite</div>
+      <ul class="clues" id="cClues"></ul>
+      <div class="sub">Suspecți</div>
+      <p class="note">Sub fiecare suspect scrie cum arată și cum trăiește. Atinge-l ca să-l tai de pe listă când nu se potrivește cu un indiciu.</p>
+      <div class="sus" id="cSus"></div>
+      <div class="foot">
+        <button class="ghost" id="cReset" type="button">Începe jocul din nou</button>
+        <button class="go" id="cClose" type="button">Închide carnetul</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="veil" id="accuse" hidden>
+    <div class="card">
+      <h2>Cine a luat mierea?</h2>
+      <p class="note">Potrivește cele cinci indicii cu însușirile fiecărui suspect.</p>
+      <div class="sus" id="aSus" style="margin-top:12px"></div>
+      <div class="foot"><span></span><button class="ghost" id="aBack" type="button">Mă mai gândesc</button></div>
+    </div>
+  </div>
+
+  <div class="veil" id="ending" hidden>
+    <div class="card" style="text-align:center">
+      <h2>Caz rezolvat!</h2>
+      <p>Festivalul Mierii poate începe. Satul Stupina îți mulțumește.</p>
+      <div id="endStars"></div>
+      <div id="endRank"></div>
+      <div class="foot" style="justify-content:center"><button class="go" id="endAgain" type="button">Mister nou, cu alt hoț și alte întrebări</button></div>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =====================================================================
+   CONȚINUTUL JOCULUI. Tot ce ține de poveste, personaje și întrebări
+   este aici, sus, ca să poată fi schimbat ușor.
+   ===================================================================== */
+const STORY = {
+  intro: [
+    {who:'owl', text:'Detective Martin, bine că ai venit! Azi-noapte a dispărut borcanul cel mare de miere din cămara satului.'},
+    {who:'owl', text:'Mâine este Festivalul Mierii. Fără miere, nu avem festival! Avem șase suspecți, iar tu trebuie să afli cine e hoțul.'},
+    {who:'bear', text:'Mă ocup eu! Vorbesc cu martorii care au semnul „!”, rezolv probele lor și adun cinci indicii.'},
+    {who:'owl', text:'Când ai toate indiciile, vino înapoi la mine, în fața primăriei. Mult succes, detective!'}
+  ]
+};
+
+/* Personaje: nume, rol și înfățișare */
+const CHARS = {
+  bear:   {name:'Martin', role:'detectiv', look:{fur:'#8d5b3a',belly:'#e0bb8c',ears:'round',snout:'muzzle',tail:'short',hat:'#5b3f8f'}},
+  owl:    {name:'Olga', role:'bufnița primar', look:{fur:'#8a6a45',belly:'#e9d3a6',ears:'tuft',snout:'beak',beak:'#f0a72a',mask:'owl',wings:'#6f5234',tail:'none'}},
+  beaver: {name:'Dinu', role:'castorul paznic', look:{fur:'#7a4f33',belly:'#c79a6d',ears:'round',snout:'muzzle',teeth:true,tail:'flat',dark:'#4a3122'}},
+  bat:    {name:'Lică', role:'liliacul de noapte', look:{fur:'#6b5a8e',belly:'#a99bc7',ears:'bat',snout:'muzzle',wings:'#4c3f6b',tail:'none',scale:.9}},
+  stork:  {name:'Doamna Barză', role:'învățătoarea', look:{fur:'#f6f3ea',belly:'#ffffff',ears:'none',snout:'longbeak',beak:'#e2503c',wings:'#2f2b3a',tail:'none',legs:'long',legColor:'#e2503c'}},
+  parrot: {name:'Polly', role:'papagalul călător', look:{fur:'#2fa866',belly:'#f4d23c',head:'#e2503c',ears:'none',snout:'hook',beak:'#3a3340',wings:'#2378b8',tail:'feather',tip:'#2378b8'}},
+  rooster:{name:'Costel', role:'cocoșul șef de gară', look:{fur:'#f3ead7',belly:'#ffffff',ears:'none',snout:'beak',beak:'#f0a72a',comb:true,wings:'#c9783a',tail:'feather',tip:'#35506e',hat:'#35506e'}},
+  fox:    {name:'Vera', role:'vulpea', look:{fur:'#e37a2c',belly:'#fff3e0',ears:'pointy',snout:'muzzle',mask:'fox',tail:'bushy',tip:'#ffffff'}},
+  badger: {name:'Barbu', role:'bursucul', look:{fur:'#70747c',belly:'#3a3b42',head:'#f4f1ea',ears:'round',earColor:'#2c2c33',snout:'muzzle',muzzle:'#f4f1ea',mask:'badger',tail:'short'}},
+  squirrel:{name:'Rița', role:'veverița', look:{fur:'#b9552a',belly:'#f6dcc0',ears:'tuft',snout:'muzzle',tail:'curl',scale:.88}},
+  hedgehog:{name:'Țepi', role:'ariciul', look:{fur:'#e3c6a0',belly:'#f3e2c8',ears:'none',snout:'muzzle',spikes:'#6a4a34',tail:'none',scale:.85}},
+  raven:  {name:'Cornel', role:'corbul', look:{fur:'#2a2836',belly:'#3b3950',ears:'none',snout:'beak',beak:'#8b8c97',wings:'#1c1a26',tail:'feather',tip:'#1c1a26'}},
+  rabbit: {name:'Rilă', role:'iepurele', look:{fur:'#f1ebe2',belly:'#ffffff',ears:'long',earInner:'#f2b6c0',snout:'muzzle',tail:'puff'}}
+};
+
+/* Suspecți. Hoțul se alege la întâmplare la fiecare joc nou.
+   legs: four / two | time: night / day (când e treaz) | coat: fur / spikes / feathers | tail: short / long | home: ground / tree */
+const SUSPECTS = [
+  {id:'fox', legs:'four', time:'night', coat:'fur', tail:'long', home:'ground', traits:'patru labe · blană · coadă lungă · trează noaptea · vizuină',
+   line:'Eu ies la plimbare doar noaptea. Ziua dorm în vizuina mea, cu coada lungă și stufoasă pe post de pernă.'},
+  {id:'badger', legs:'four', time:'night', coat:'fur', tail:'short', home:'ground', traits:'patru labe · blană · coadă scurtă · treaz noaptea · vizuină',
+   line:'Ăăă... eu dorm toată ziua în vizuină și ies doar noaptea. Coada mea? E scurtă, abia se vede.'},
+  {id:'squirrel', legs:'four', time:'day', coat:'fur', tail:'long', home:'tree', traits:'patru labe · blană · coadă lungă · trează ziua · copac',
+   line:'Eu mă culc odată cu soarele, în scorbura mea din copac. Ai văzut ce coadă lungă și pufoasă am?'},
+  {id:'hedgehog', legs:'four', time:'night', coat:'spikes', tail:'short', home:'ground', traits:'patru labe · țepi · coadă scurtă · treaz noaptea · culcuș la pământ',
+   line:'Ai grijă, înțep! Eu ies noaptea după râme și dorm ziua sub un tufiș. Coada mea e mică de tot.'},
+  {id:'raven', legs:'two', time:'day', coat:'feathers', tail:'long', home:'tree', traits:'două picioare · pene · coadă lungă · treaz ziua · copac',
+   line:'Cra! Eu am două picioare, două aripi și o coadă lungă de pene. Zbor numai ziua și dorm în cuibul meu din copac.'},
+  {id:'rabbit', legs:'four', time:'day', coat:'fur', tail:'short', home:'ground', traits:'patru labe · blană · coadă scurtă · treaz ziua · vizuină',
+   line:'Eu țopăi toată ziua pe pajiște, iar noaptea dorm în vizuină. Coada mea e doar un pămătuf mic.'}
+];
+
+/* Probe: fiecare martor pune 3 întrebări alese la întâmplare, apoi dă indiciul potrivit hoțului din jocul acesta.
+   q = întrebarea, a = variante, c = numărul variantei corecte (începe de la 0), h = ajutor după o greșeală */
+const STATIONS = [
+  {id:'math', npc:'beaver', subject:'Matematică',
+   hello:'Eu păzesc cămara. Am văzut urmele hoțului, dar mai întâi ajută-mă să-mi refac socotelile din registru.',
+   attr:'legs',
+   clue:{four:{title:'Urme de patru labe', text:'În noroiul din fața cămării sunt urme de patru labe. Hoțul merge în patru labe!'},
+         two:{title:'Urme de pasăre', text:'În noroiul din fața cămării sunt urme de două picioare, ca de pasăre. Hoțul merge în două picioare!'}},
+   say:{four:'Urmele din noroi sunt de patru labe.', two:'Urmele din noroi sunt de două picioare, ca de pasăre.'},
+   has:{four:'merge în patru labe', two:'are doar două picioare'},
+   questions:[
+    {q:'Pe 3 rafturi stau câte 5 borcane. Câte borcane sunt în total?', a:['8','12','15','20'], c:2, h:'Adună 5 + 5 + 5 sau înmulțește 3 cu 5.'},
+    {q:'Cât face 7 + 8?', a:['14','15','16','17'], c:1, h:'7 + 3 = 10. Din 8 ți-au mai rămas 5.'},
+    {q:'Cât face 36 + 42?', a:['68','76','78','88'], c:2, h:'Adună zecile între ele și unitățile între ele: 30 + 40 și 6 + 2.'},
+    {q:'Cât face 85 − 23?', a:['52','62','63','68'], c:1, h:'Scade zecile: 80 − 20. Apoi unitățile: 5 − 3.'},
+    {q:'Cât face 54 + 28?', a:['72','712','82','84'], c:2, h:'4 + 8 = 12. Scrii 2 și ții minte o zece.'},
+    {q:'Cât face 4 × 6?', a:['10','20','24','28'], c:2, h:'Adună 6 de patru ori: 6 + 6 + 6 + 6.'},
+    {q:'20 de borcane se pun în mod egal în 5 lăzi. Câte borcane sunt într-o ladă?', a:['3','4','5','15'], c:1, h:'Caută numărul care, înmulțit cu 5, dă 20.'},
+    {q:'Care este jumătatea numărului 16?', a:['6','7','8','9'], c:2, h:'Ce număr adunat cu el însuși dă 16?'},
+    {q:'Ce număr urmează? 5, 10, 15, ...', a:['16','20','25','30'], c:1, h:'Numerele cresc din 5 în 5.'},
+    {q:'Care este dublul numărului 9?', a:['11','16','18','19'], c:2, h:'Dublul înseamnă de două ori: 9 + 9.'}
+   ]},
+  {id:'science', npc:'bat', subject:'Științe',
+   hello:'Eu sunt treaz toată noaptea, așa că am auzit ceva. Îți spun dacă știi câteva lucruri despre natură.',
+   attr:'time',
+   clue:{night:{title:'Furt la miezul nopții', text:'Am auzit ușa cămării scârțâind fix la miezul nopții. Hoțul este treaz noaptea!'},
+         day:{title:'Furt în zori', text:'Tocmai mă culcam, la răsăritul soarelui, când am auzit ușa cămării scârțâind. Hoțul este treaz ziua!'}},
+   say:{night:'Furtul a fost la miezul nopții.', day:'Furtul a fost ziua, la răsăritul soarelui.'},
+   has:{night:'doarme ziua și umblă doar noaptea', day:'doarme noaptea și umblă doar ziua'},
+   questions:[
+    {q:'Din ce fac albinele mierea?', a:['Din frunze','Din nectarul florilor','Din apă de ploaie','Din iarbă'], c:1, h:'Albinele zboară din floare în floare și adună un lichid dulce.'},
+    {q:'Care dintre aceste animale este treaz noaptea?', a:['Găina','Barza','Liliacul','Fluturele'], c:2, h:'Zboară, dar nu este pasăre, și doarme ziua cu capul în jos.'},
+    {q:'Ce parte a plantei stă în pământ și bea apa?', a:['Rădăcina','Frunza','Floarea','Fructul'], c:0, h:'Este partea pe care nu o vezi, pentru că e ascunsă în sol.'},
+    {q:'Ce anotimp vine după iarnă?', a:['Vara','Toamna','Primăvara','Tot iarna'], c:2, h:'Atunci se topește zăpada și apar ghioceii.'},
+    {q:'În ce se transformă apa când este foarte frig?', a:['În abur','În gheață','În nisip','În ploaie'], c:1, h:'Gândește-te la un lac, iarna.'},
+    {q:'Care animal doarme toată iarna?', a:['Vrabia','Ariciul','Lupul','Căprioara'], c:1, h:'Se face ghem într-un culcuș de frunze și se trezește primăvara.'},
+    {q:'De ce au nevoie plantele ca să crească?', a:['De întuneric','De zăpadă','De apă și lumină','De zgomot'], c:2, h:'De aceea udăm florile și le ținem la fereastră.'},
+    {q:'Care dintre aceste animale are corpul acoperit cu pene?', a:['Vulpea','Barza','Ariciul','Iepurele'], c:1, h:'Penele le au păsările.'},
+    {q:'Câte picioare are o albină?', a:['2','4','6','8'], c:2, h:'Albina este o insectă. Toate insectele au același număr de picioare, mai mare decât 4.'}
+   ]},
+  {id:'romanian', npc:'stork', subject:'Limba română',
+   hello:'Am găsit ceva pe gardul școlii. Dar un detectiv bun știe să scrie și să citească bine! Să vedem.',
+   attr:'coat',
+   clue:{fur:{title:'Un smoc de blană moale', text:'Pe gardul școlii a rămas agățat un smoc de blană moale. Hoțul are blană, nu pene și nici țepi.'},
+         spikes:{title:'Un țep ascuțit', text:'Pe gardul școlii a rămas înfipt un țep ascuțit. Hoțul are țepi, nu blană și nici pene.'},
+         feathers:{title:'O pană neagră', text:'Pe gardul școlii a rămas agățată o pană neagră. Hoțul are pene, nu blană și nici țepi.'}},
+   say:{fur:'Pe gard a rămas un smoc de blană moale.', spikes:'Pe gard a rămas un țep.', feathers:'Pe gard a rămas o pană.'},
+   has:{fur:'are blană moale', spikes:'are țepi', feathers:'are pene'},
+   questions:[
+    {q:'Câte silabe are cuvântul „detectiv”?', a:['2','3','4','5'], c:1, h:'Desparte-l bătând din palme: de-tec-tiv.'},
+    {q:'Care cuvânt are înțeles opus pentru „întuneric”?', a:['noapte','umbră','lumină','beznă'], c:2, h:'Cauți opusul: ce apare când aprinzi becul?'},
+    {q:'Care cuvânt are același înțeles cu „zăpadă”?', a:['nea','gheață','ploaie','ceață'], c:0, h:'Este un cuvânt scurt, de o singură silabă.'},
+    {q:'Alege forma corectă: „Hoțul ___ ascuns în pădure.”', a:['sa','s-a'], c:1, h:'Se scrie cu liniuță când urmează ce a făcut cineva: s-a dus, s-a ascuns.'},
+    {q:'Alege forma corectă: „Ursul merge ___ școală.”', a:['l-a','la'], c:1, h:'„L-a” se scrie înaintea unei acțiuni (l-a văzut). Aici urmează un loc.'},
+    {q:'Alege forma corectă: „Am văzut urme ___ tufiș.”', a:['întrun','într-un','între-un'], c:1, h:'Se scrie cu liniuță, la fel ca „într-o”.'},
+    {q:'Care cuvânt este scris corect?', a:['bonboană','bomboană','bombonă','bonbonă'], c:1, h:'Înainte de p și b scriem m, nu n.'},
+    {q:'Ce semn punem la sfârșit? „Cine a luat mierea”', a:['Punct','Semnul întrebării','Virgulă','Două puncte'], c:1, h:'Este o întrebare.'},
+    {q:'Care cuvânt începe cu o vocală?', a:['miere','borcan','urs','vulpe'], c:2, h:'Vocalele sunt a, ă, â, e, i, î, o, u.'},
+    {q:'O albină, două ...', a:['albină','albini','albine','albinuță'], c:2, h:'Spune cu voce tare: „două ...” și ascultă cum sună bine.'}
+   ]},
+  {id:'english', npc:'parrot', subject:'Engleză',
+   hello:'Hello! Am găsit un bilet scris în engleză, lângă lac. Îl citim împreună dacă știi câteva cuvinte.',
+   attr:'tail',
+   clue:{short:{title:'Biletul în engleză', text:'Pe bilet scrie: “The thief has a short tail.” Adică: hoțul are coada scurtă.'},
+         long:{title:'Biletul în engleză', text:'Pe bilet scrie: “The thief has a long tail.” Adică: hoțul are coada lungă.'}},
+   say:{short:'Biletul spune că hoțul are coada scurtă.', long:'Biletul spune că hoțul are coada lungă.'},
+   has:{short:'are coada scurtă', long:'are coada lungă'},
+   questions:[
+    {q:'Ce înseamnă „bear”?', a:['urs','pasăre','albină','băiat'], c:0, h:'Este chiar animalul cu care joci acum.'},
+    {q:'Ce culoare este „red”?', a:['verde','albastru','roșu','galben'], c:2, h:'Este culoarea căpșunilor.'},
+    {q:'Ce număr este „three”?', a:['2','3','4','13'], c:1, h:'One, two, ...'},
+    {q:'Ce înseamnă „cat”?', a:['câine','cal','pisică','vacă'], c:2, h:'Face „miau”.'},
+    {q:'Cum se spune „câine” în engleză?', a:['dog','duck','fish','frog'], c:0, h:'Face „ham-ham” și are trei litere.'},
+    {q:'Ce înseamnă „honey”?', a:['miere','albină','bani','casă'], c:0, h:'Este dulce și o fac albinele.'},
+    {q:'Ce spui când te întâlnești cu cineva?', a:['Goodbye!','Hello!','Good night!','Thank you!'], c:1, h:'Așa te-a salutat și Polly.'},
+    {q:'Ce număr este „ten”?', a:['2','5','10','12'], c:2, h:'Câte degete ai la amândouă mâinile?'},
+    {q:'„Long” înseamnă lung. Ce înseamnă „short”?', a:['scurt','gras','înalt','moale'], c:0, h:'Este opusul lui „lung”.'}
+   ]},
+  {id:'geo', npc:'rooster', subject:'Lumea din jur',
+   hello:'La gară se știe tot cine pleacă și cine vine. De pe peron am văzut ceva! Îți spun, dacă răspunzi la câteva întrebări.',
+   attr:'home',
+   clue:{ground:{title:'A fugit într-o vizuină', text:'De pe peronul gării l-am văzut pe hoț fugind cu borcanul și ascunzându-se jos, la pământ. Hoțul locuiește la pământ, nu în copac!'},
+         tree:{title:'A urcat într-un copac', text:'De pe peronul gării l-am văzut pe hoț urcând cu borcanul într-un copac. Hoțul locuiește sus, în copac!'}},
+   say:{ground:'Hoțul s-a ascuns jos, la pământ.', tree:'Hoțul a urcat cu borcanul într-un copac.'},
+   has:{ground:'locuiește jos, la pământ', tree:'locuiește sus, în copac'},
+   questions:[
+    {q:'Care este capitala României?', a:['Cluj-Napoca','Iași','București','Brașov'], c:2, h:'Este cel mai mare oraș din țară.'},
+    {q:'Care sunt culorile steagului României?', a:['roșu, alb, verde','albastru, galben, roșu','roșu, galben, verde','albastru, alb, roșu'], c:1, h:'Culoarea din mijloc este cea a mierii.'},
+    {q:'Când este Ziua Națională a României?', a:['1 Iunie','1 Martie','1 Decembrie','25 Decembrie'], c:2, h:'Este iarna, în prima zi a lunii în care vine Moș Crăciun.'},
+    {q:'Cum se numește fluviul cel mare care trece prin România?', a:['Dunărea','Nilul','Mureșul','Oltul'], c:0, h:'Se varsă în Marea Neagră și are o deltă.'},
+    {q:'Câte zile are o săptămână?', a:['5','6','7','10'], c:2, h:'Numără-le: luni, marți, miercuri...'},
+    {q:'Câte luni are un an?', a:['10','12','7','30'], c:1, h:'Începe cu ianuarie și se termină cu decembrie.'},
+    {q:'Trenul pleacă la ora 8 și merge 3 ore. La ce oră ajunge?', a:['ora 5','ora 10','ora 11','ora 12'], c:2, h:'Adună 3 la 8.'},
+    {q:'Ce zi vine după joi?', a:['miercuri','vineri','sâmbătă','luni'], c:1, h:'Este ultima zi de școală din săptămână.'},
+    {q:'Ce lună vine după martie?', a:['februarie','mai','aprilie','iunie'], c:2, h:'Este a patra lună din an.'}
+   ]}
+];
+
+/* Unde stă fiecare personaj pe hartă (în pătrățele) */
+const NPCS = [
+  {id:'owl', x:13, y:5.6, kind:'mayor'},
+  {id:'beaver', x:4.5, y:6.6, kind:'station'},
+  {id:'stork', x:20.5, y:6.7, kind:'station'},
+  {id:'rooster', x:21, y:13.6, kind:'station'},
+  {id:'parrot', x:8.5, y:14.6, kind:'station'},
+  {id:'bat', x:14.6, y:15.5, kind:'station'},
+  {id:'fox', x:8.5, y:7.5, kind:'suspect'},
+  {id:'squirrel', x:17, y:7.5, kind:'suspect'},
+  {id:'badger', x:23.2, y:7.5, kind:'suspect'},
+  {id:'hedgehog', x:6.5, y:10.6, kind:'suspect'},
+  {id:'raven', x:16, y:10.6, kind:'suspect'},
+  {id:'rabbit', x:17.3, y:13.2, kind:'suspect'}
+];
+
+/* =====================================================================
+   MOTORUL JOCULUI
+   ===================================================================== */
+const T = 48, MW = 26, MH = 18;
+const $ = id => document.getElementById(id);
+const cv = $('game');
+const SAVE_KEY = 'misterul-mierii-3d-v1';
+const START = {x:13*T, y:11.6*T};
+
+const MAXSTARS = STATIONS.length*3;
+/* Alege hoțul: fiecare suspect este vinovat o dată, pe rând, înainte să se repete vreunul. */
+function nextCulprit(seen){
+  let pool = SUSPECTS.map(s=>s.id).filter(id => !seen.includes(id));
+  if(!pool.length){ const last=seen[seen.length-1]; seen.length=0; pool = SUSPECTS.map(s=>s.id).filter(id => id!==last); }
+  const id = pool[Math.floor(Math.random()*pool.length)]; seen.push(id); return id;
+}
+const fresh = (seen) => { seen=(seen||[]).slice(); const c=nextCulprit(seen); return {clues:[], stars:0, crossed:[], won:false, intro:false, x:START.x, y:START.y, culprit:c, seen}; };
+
+let S = fresh();
+let mode = 'play';            // play | talk | quiz | menu
+const keys = {up:false,down:false,left:false,right:false};
+let facing = 1, walkT = 0, near = null, clock = 0;
+const joy = {x:0, y:0};
+const culprit = () => SUSPECTS.find(s => s.id===S.culprit) || SUSPECTS[0];
+const clueOf = st => st.clue[culprit()[st.attr]];
+
+/* ---------- harta ---------- */
+const G = Array.from({length:MH}, () => new Array(MW).fill(0)); // 0 iarbă, 1 drum, 2 apă, 3 copac, 4 clădire
+const rect = (x0,y0,x1,y1,v) => { for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) G[y][x]=v; };
+const BUILDINGS = [
+  {x:3,y:3,w:3,h:3,wall:'#e8c07a',roof:'#b5532f',sign:'CĂMARA'},
+  {x:11,y:2,w:4,h:3,wall:'#f0e2c0',roof:'#5b3f8f',sign:'PRIMĂRIA'},
+  {x:19,y:3,w:4,h:3,wall:'#f3d7a2',roof:'#2f7f8f',sign:'ȘCOALA'},
+  {x:20,y:10,w:3,h:3,wall:'#e3d2c2',roof:'#35506e',sign:'GARA'}
+];
+rect(1,8,24,9,1); rect(12,5,13,16,1); rect(10,7,15,10,1); rect(11,5,14,5,1);
+rect(4,6,4,7,1); rect(20,6,20,7,1); rect(18,10,18,14,1); rect(18,14,22,14,1); rect(8,10,8,14,1);
+rect(3,12,6,15,2);
+BUILDINGS.forEach(b => rect(b.x,b.y,b.x+b.w-1,b.y+b.h-1,4));
+const rnd = (x,y) => { let h=(x*374761393 + y*668265263)>>>0; h=((h^(h>>>13))*1274126177)>>>0; return ((h^(h>>>16))>>>0)/4294967296; };
+const TREES = [];
+for(let y=0;y<MH;y++) for(let x=0;x<MW;x++){
+  const edge = x===0||y===0||x===MW-1||y===MH-1;
+  if(G[y][x]!==0) continue;
+  let free = true;
+  for(let dy=-1;dy<=1&&free;dy++) for(let dx=-1;dx<=1;dx++){
+    const v=(G[y+dy]||[])[x+dx]; if(v===1||v===4||v===2){free=false;break;}
+  }
+  if(NPCS.some(n => Math.abs(n.x-(x+.5))<1.6 && Math.abs(n.y-(y+.5))<1.6)) free=false;
+  if(edge || (free && rnd(x,y)<0.26)){ G[y][x]=3; TREES.push({x,y,big:false}); }
+}
+G[14][15]=3; TREES.push({x:15,y:14,big:true});            // stejarul bătrân, lângă liliac
+const WELL = {x:13*T, y:8.9*T, r:30};
+const solidAt = (px,py) => { const tx=Math.floor(px/T), ty=Math.floor(py/T); if(tx<0||ty<0||tx>=MW||ty>=MH) return true; return G[ty][tx]>=2; };
+
+/* ---------- desen: personaje ---------- */
+function el(c,x,y,rx,ry,fill,rot){ c.beginPath(); c.ellipse(x,y,rx,ry,rot||0,0,Math.PI*2); c.fillStyle=fill; c.fill(); }
+function tri(c,x1,y1,x2,y2,x3,y3,fill){ c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); c.lineTo(x3,y3); c.closePath(); c.fillStyle=fill; c.fill(); }
+function drawCritter(c, s, walk){
+  const k = s.scale||1, dark = s.dark||'rgba(40,30,50,.55)';
+  c.save(); c.scale(k,k);
+  if(s.legs==='long'){
+    c.strokeStyle=s.legColor; c.lineWidth=2.6; c.lineCap='round';
+    c.beginPath(); c.moveTo(-4,0); c.lineTo(-4,-16); c.moveTo(4,0); c.lineTo(4,-16); c.stroke();
+    c.translate(0,-13);
+  } else {
+    const st = walk ? Math.sin(walk*14)*2.5 : 0;
+    el(c,-6,-2+Math.max(0,st)*-1,5,3.6,dark); el(c,6,-2+Math.max(0,-st)*-1,5,3.6,dark);
+  }
+  if(walk) c.translate(0, Math.abs(Math.sin(walk*14))*-1.6);
+  // coada
+  if(s.tail==='bushy'){ el(c,-16,-15,7,13,s.fur,-.7); el(c,-22,-22,4.5,5.5,s.tip,-.7); }
+  if(s.tail==='curl'){ el(c,-15,-24,9,16,s.fur,-.15); el(c,-14,-23,4.5,10,s.belly,-.15); }
+  if(s.tail==='flat'){ el(c,-16,-4,10,4.5,dark,.25); }
+  if(s.tail==='puff'){ el(c,-12,-8,5,5,'#ffffff'); }
+  if(s.tail==='short'){ el(c,-12,-7,4.5,3.2,s.fur,.4); }
+  if(s.tail==='feather'){ tri(c,-8,-10,-22,-2,-18,-16,s.tip); }
+  // țepi
+  if(s.spikes){
+    c.beginPath(); c.moveTo(0,-24);
+    for(let i=0;i<=16;i++){ const a=(105+i*15)*Math.PI/180, r=i%2?27:20; c.lineTo(-2+Math.cos(a)*r,-24+Math.sin(a)*r); }
+    c.closePath(); c.fillStyle=s.spikes; c.fill();
+  }
+  // aripi de liliac, desfăcute
+  if(s.ears==='bat'){ tri(c,-8,-22,-30,-30,-22,-6,s.wings); tri(c,8,-22,30,-30,22,-6,s.wings); }
+  // corp
+  el(c,0,-14,13,14,s.fur); el(c,0,-11,8,9.5,s.belly);
+  if(s.wings && s.ears!=='bat'){ el(c,-12,-15,4.6,11,s.wings,.22); el(c,12,-15,4.6,11,s.wings,-.22); }
+  // urechi
+  const ec = s.earColor||s.fur;
+  if(s.ears==='round'){ el(c,-10,-44,5.2,5.2,ec); el(c,10,-44,5.2,5.2,ec); el(c,-10,-44,2.4,2.4,s.belly); el(c,10,-44,2.4,2.4,s.belly); }
+  if(s.ears==='pointy'){ tri(c,-13,-40,-10,-55,-3,-44,ec); tri(c,13,-40,10,-55,3,-44,ec); tri(c,-10.5,-43,-9.6,-50,-6,-44,'#3a2a2a'); tri(c,10.5,-43,9.6,-50,6,-44,'#3a2a2a'); }
+  if(s.ears==='tuft'){ tri(c,-12,-40,-11,-51,-4,-44,ec); tri(c,12,-40,11,-51,4,-44,ec); }
+  if(s.ears==='long'){ el(c,-6,-55,4.2,13,ec,-.12); el(c,6,-55,4.2,13,ec,.12); el(c,-6,-55,2,9,s.earInner,-.12); el(c,6,-55,2,9,s.earInner,.12); }
+  if(s.ears==='bat'){ tri(c,-13,-38,-12,-56,-2,-44,ec); tri(c,13,-38,12,-56,2,-44,ec); }
+  if(s.comb){ el(c,-3,-47,3.4,4.4,'#d93a3a'); el(c,2,-48.5,3.6,5,'#d93a3a'); }
+  // cap
+  el(c,0,-34,13,12,s.head||s.fur);
+  if(s.mask==='badger'){ el(c,-6,-36,3.6,9,'#2c2c33',.18); el(c,6,-36,3.6,9,'#2c2c33',-.18); }
+  if(s.mask==='fox'){ el(c,-7,-29,6,5,'#fff3e0'); el(c,7,-29,6,5,'#fff3e0'); }
+  if(s.mask==='owl'){ el(c,-5.5,-36,6.2,6.2,'#f3e3c0'); el(c,5.5,-36,6.2,6.2,'#f3e3c0'); }
+  // ochi
+  const er = s.mask==='owl' ? 3.2 : 2.5;
+  el(c,-5.5,-36,er,er,'#ffffff'); el(c,5.5,-36,er,er,'#ffffff');
+  el(c,-5.1,-35.8,er*.58,er*.62,'#1d1a26'); el(c,5.9,-35.8,er*.58,er*.62,'#1d1a26');
+  // bot / cioc
+  if(s.snout==='muzzle'){ el(c,0,-29.5,5.6,4.2,s.muzzle||s.belly); el(c,0,-31.4,2.3,1.7,'#2a2026');
+    if(s.teeth){ c.fillStyle='#ffffff'; c.fillRect(-2.6,-27.6,5.2,4.2); c.fillStyle='#c9c2b0'; c.fillRect(-.3,-27.6,.6,4.2); } }
+  if(s.snout==='beak'){ tri(c,-3.4,-32.5,3.4,-32.5,0,-26,s.beak); }
+  if(s.snout==='longbeak'){ tri(c,3,-34.5,3,-29.5,27,-30.5,s.beak); }
+  if(s.snout==='hook'){ el(c,0,-30,4.2,5.2,s.beak); el(c,0,-32.4,3.4,2.2,'#55505e'); }
+  if(s.comb){ el(c,0,-24.6,2.4,3.4,'#d93a3a'); }
+  // pălărie
+  if(s.hat){ el(c,0,-44.5,12.5,6.4,s.hat); c.fillStyle=s.hat; c.fillRect(-12.5,-45,25,3.4); el(c,9,-41.4,8.5,2.8,'rgba(20,15,40,.55)'); el(c,0,-50.5,2.2,1.8,'#f7b21b'); }
+  c.restore();
+}
+function portrait(canvas, id){
+  const c = canvas.getContext('2d'), w = canvas.width;
+  c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,w,w);
+  const k = w/84; c.setTransform(k*1.32,0,0,k*1.32,w/2,w*0.93);
+  drawCritter(c, CHARS[id].look, 0);
+}
+
+function stationOf(npcId){ return STATIONS.find(s => s.npc===npcId); }
+/* ---------- lumea 3D ---------- */
+let R3 = null;
+try { R3 = new THREE.WebGLRenderer({canvas:cv, antialias:true}); } catch(e) { R3 = null; }
+if(!R3){ const m=document.createElement('p'); m.textContent='Acest dispozitiv nu poate afișa jocul în 3D. Încearcă varianta 2D sau alt browser.'; m.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:#fff;font-size:20px;margin:0'; $('stage').appendChild(m); }
+const SKY = '#bfe6f5';
+const scene = new THREE.Scene(); scene.background = new THREE.Color(SKY); scene.fog = new THREE.Fog(SKY, 15, 32);
+const cam = new THREE.PerspectiveCamera(40, 1, .1, 90);
+scene.add(new THREE.HemisphereLight('#ffffff', '#6f9a5c', .72));
+const sun = new THREE.DirectionalLight('#fff0c8', .5); sun.position.set(-6, 12, 8); scene.add(sun);
+
+const MATS = {};
+function mat(color, flat){ const c=new THREE.Color(color), k=c.getHexString()+(flat?'f':'s'); return MATS[k] || (MATS[k]=new THREE.MeshStandardMaterial({color:c, flatShading:!!flat, roughness:1, metalness:0})); }
+const GEO = {
+  ball:new THREE.IcosahedronGeometry(1,2), rock:new THREE.IcosahedronGeometry(1,0), cone:new THREE.ConeGeometry(1,1,10),
+  cyl:new THREE.CylinderGeometry(1,1,1,12), box:new THREE.BoxGeometry(1,1,1), roof:new THREE.ConeGeometry(Math.SQRT1_2,1,4).rotateY(Math.PI/4),
+  disc:new THREE.CircleGeometry(1,20).rotateX(-Math.PI/2)
+};
+function part(parent, g, color, s, p, rot, flat){
+  const m = new THREE.Mesh(GEO[g], mat(color, flat)); m.scale.set(s[0],s[1],s[2]); m.position.set(p[0],p[1],p[2]);
+  if(rot) m.rotation.set(rot[0],rot[1],rot[2]); parent.add(m); return m;
+}
+const SHADOW = new THREE.MeshBasicMaterial({color:'#1b3324', transparent:true, opacity:.25, depthWrite:false});
+function shadow(parent, r, x, z){ const m=new THREE.Mesh(GEO.disc, SHADOW); m.scale.set(r,1,r*.8); m.position.set(x||0,.02,z||0); parent.add(m); return m; }
+
+/* Construiește un personaj 3D din aceeași descriere folosită la portrete. Privește spre +z. */
+function buildCritter(s){
+  const g = new THREE.Group(), b = new THREE.Group(); g.add(b);
+  const dark = '#'+new THREE.Color(s.fur).multiplyScalar(.6).getHexString(), HALF=Math.PI/2;
+  let o = 0;
+  if(s.legs==='long'){ o=.3; part(g,'cyl',s.legColor,[.03,.4,.03],[-.1,.2,0]); part(g,'cyl',s.legColor,[.03,.4,.03],[.1,.2,0]); }
+  else { part(g,'ball',dark,[.13,.08,.17],[-.14,.07,.05]); part(g,'ball',dark,[.13,.08,.17],[.14,.07,.05]); }
+  b.position.y = o;
+  // coada
+  if(s.tail==='bushy'){ part(b,'ball',s.fur,[.14,.14,.27],[0,.32,-.38],[-.5,0,0]); part(b,'ball',s.tip,[.1,.1,.12],[0,.45,-.58]); }
+  if(s.tail==='curl'){ part(b,'ball',s.fur,[.15,.32,.15],[0,.55,-.36]); part(b,'ball',s.fur,[.14,.14,.16],[0,.86,-.28]); }
+  if(s.tail==='flat'){ part(b,'ball',dark,[.16,.04,.26],[0,.07,-.4]); }
+  if(s.tail==='puff'){ part(b,'ball','#ffffff',[.1,.1,.1],[0,.24,-.28]); }
+  if(s.tail==='short'){ part(b,'ball',s.fur,[.07,.07,.09],[0,.22,-.28]); }
+  if(s.tail==='feather'){ part(b,'cone',s.tip,[.11,.32,.05],[0,.3,-.38],[-HALF-.3,0,0]); }
+  // țepi
+  if(s.spikes){
+    part(b,'ball',s.spikes,[.36,.42,.33],[0,.62,-.1]);
+    const up=new THREE.Vector3(0,1,0);
+    for(let i=0;i<4;i++) for(let j=0;j<7;j++){
+      const th=(.25+i*.2)*Math.PI, ph=(-.95+j*.317)*Math.PI/1.9 - HALF;   // pe spate și deasupra
+      const n=new THREE.Vector3(Math.sin(th)*Math.cos(ph), Math.cos(th), Math.sin(th)*Math.sin(ph));
+      if(n.z>.25) continue;
+      const m=part(b,'cone',s.spikes,[.06,.2,.06],[n.x*.4, .62+n.y*.46, -.1+n.z*.37]); m.quaternion.setFromUnitVectors(up,n);
+    }
+  }
+  // corp
+  part(b,'ball',s.fur,[.3,.33,.27],[0,.36,0]); part(b,'ball',s.belly,[.2,.23,.12],[0,.33,.18]);
+  if(s.ears==='bat'){ part(b,'roof',s.wings,[.5,.5,.04],[-.42,.5,-.06],[0,0,.5]); part(b,'roof',s.wings,[.5,.5,.04],[.42,.5,-.06],[0,0,-.5]); }
+  else if(s.wings){ part(b,'ball',s.wings,[.08,.24,.17],[-.3,.38,0],[0,0,-.15]); part(b,'ball',s.wings,[.08,.24,.17],[.3,.38,0],[0,0,.15]); }
+  // cap
+  const hc = s.head||s.fur;
+  part(b,'ball',hc,[.3,.27,.27],[0,.84,0]);
+  const ec = s.earColor||s.fur;
+  if(s.ears==='round'){ [-1,1].forEach(k=>{ part(b,'ball',ec,[.1,.1,.07],[k*.22,1.06,0]); part(b,'ball',s.belly,[.05,.05,.04],[k*.22,1.06,.05]); }); }
+  if(s.ears==='pointy'){ [-1,1].forEach(k=>{ part(b,'cone',ec,[.1,.24,.08],[k*.17,1.12,0],[0,0,-k*.2]); part(b,'cone','#3a2a2a',[.05,.15,.04],[k*.17,1.11,.05],[0,0,-k*.2]); }); }
+  if(s.ears==='tuft'){ [-1,1].forEach(k=>part(b,'cone',ec,[.07,.18,.06],[k*.19,1.1,0],[0,0,-k*.3])); }
+  if(s.ears==='long'){ [-1,1].forEach(k=>{ part(b,'ball',ec,[.07,.25,.05],[k*.11,1.28,0],[0,0,-k*.12]); part(b,'ball',s.earInner,[.035,.19,.03],[k*.11,1.28,.035],[0,0,-k*.12]); }); }
+  if(s.ears==='bat'){ [-1,1].forEach(k=>part(b,'cone',ec,[.11,.3,.07],[k*.17,1.14,0],[0,0,-k*.25])); }
+  if(s.comb){ part(b,'ball','#d93a3a',[.05,.1,.12],[0,1.12,.02]); part(b,'ball','#d93a3a',[.04,.06,.04],[0,.69,.3]); }
+  if(s.mask==='badger'){ [-1,1].forEach(k=>part(b,'ball','#2c2c33',[.065,.17,.2],[k*.12,.9,.1],[.5,0,0])); }
+  if(s.mask==='fox'){ [-1,1].forEach(k=>part(b,'ball','#fff3e0',[.12,.1,.1],[k*.15,.77,.17])); }
+  const big = s.mask==='owl';
+  if(big){ [-1,1].forEach(k=>part(b,'ball','#f3e3c0',[.12,.12,.05],[k*.12,.88,.22])); }
+  [-1,1].forEach(k=>{ part(b,'ball','#ffffff',[big?.07:.055,big?.07:.055,.04],[k*.12,.89,.235]); part(b,'ball','#1d1a26',[big?.04:.032,big?.04:.032,.03],[k*.12,.89,.262]); });
+  if(s.snout==='muzzle'){ part(b,'ball',s.muzzle||s.belly,[.12,.09,.1],[0,.78,.24]); part(b,'ball','#2a2026',[.045,.035,.035],[0,.81,.33]);
+    if(s.teeth) part(b,'box','#ffffff',[.08,.07,.02],[0,.7,.31]); }
+  if(s.snout==='beak'){ part(b,'cone',s.beak,[.07,.17,.07],[0,.8,.32],[HALF,0,0]); }
+  if(s.snout==='longbeak'){ part(b,'cone',s.beak,[.05,.55,.05],[0,.78,.5],[HALF+.12,0,0]); }
+  if(s.snout==='hook'){ part(b,'ball',s.beak,[.08,.1,.1],[0,.79,.27]); part(b,'ball','#55505e',[.065,.045,.07],[0,.84,.26]); }
+  if(s.hat){ part(b,'cyl',s.hat,[.25,.12,.25],[0,1.1,0]); part(b,'cyl','#2a2148',[.27,.03,.3],[0,1.05,.1]); part(b,'ball','#f7b21b',[.035,.03,.035],[0,1.17,0]); }
+  const k = .95*(s.scale||1); g.scale.set(k,k,k);
+  g.userData = {body:b, top:(1.32+o+(s.ears==='long'?.26:0))*k};
+  return g;
+}
+
+/* Etichete și semne desenate pe o pânză mică, apoi puse în lume ca imagini care privesc mereu spre cameră */
+function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+const LABELS = [];
+function paintLabel(text, bg, fg, r){
+  const c=document.createElement('canvas'), g=c.getContext('2d'); g.font='700 40px "Baloo 2",sans-serif';
+  const w=Math.ceil(g.measureText(text).width)+44; c.width=w; c.height=64;
+  g.font='700 40px "Baloo 2",sans-serif'; g.fillStyle=bg; rr(g,0,2,w,60,r||30); g.fill();
+  g.fillStyle=fg; g.textAlign='center'; g.textBaseline='middle'; g.fillText(text,w/2,35);
+  return c;
+}
+function labelMat(text, bg, fg, r){
+  const c=paintLabel(text,bg,fg,r), m=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c), transparent:true});
+  m.userData={ratio:c.width/64, sprites:[], redo:()=>paintLabel(text,bg,fg,r)}; LABELS.push(m); return m;
+}
+function sprite(material, h){ const s=new THREE.Sprite(material); s.scale.set(h*material.userData.ratio,h,1); if(material.userData.sprites) material.userData.sprites.push({s,h}); return s; }
+function repaintLabels(){
+  LABELS.forEach(m=>{ const c=m.userData.redo(); m.map.dispose(); m.map=new THREE.CanvasTexture(c); m.needsUpdate=true; m.userData.ratio=c.width/64; });
+  LABELS.forEach(m=>m.userData.sprites.forEach(o=>o.s.scale.set(o.h*m.userData.ratio,o.h,1)));
+  NPCS.forEach(n=>{ if(n.label) n.label.scale.set(n.label.scale.y*n.lo.userData.ratio, n.label.scale.y, 1); });
+  ['!','?'].forEach(k=>{ if(typeof MARK!=='undefined'){ const old=MARK[k].map; MARK[k].map=markMat(k).map; MARK[k].needsUpdate=true; old.dispose(); } });
+}
+if(document.fonts && document.fonts.load) Promise.all([document.fonts.load('700 40px "Baloo 2"','ȘșȚțĂăÂâÎî'), document.fonts.load('800 64px "Baloo 2"','!?')]).then(repaintLabels).catch(()=>{});
+function markMat(ch){
+  const c=document.createElement('canvas'), g=c.getContext('2d'); c.width=96; c.height=120;
+  g.fillStyle='#f7b21b'; g.beginPath(); g.arc(48,46,42,0,Math.PI*2); g.fill(); g.beginPath(); g.moveTo(26,80); g.lineTo(70,80); g.lineTo(48,116); g.closePath(); g.fill();
+  g.fillStyle='#2b2347'; g.font='800 64px "Baloo 2",sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(ch,48,50);
+  const m=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c), transparent:true}); m.userData={ratio:.8}; return m;
+}
+
+function groundTexture(){
+  const P=40, c=document.createElement('canvas'), g=c.getContext('2d'); c.width=MW*P; c.height=MH*P;
+  for(let y=0;y<MH;y++) for(let x=0;x<MW;x++){
+    const v=G[y][x], r=rnd(x,y);
+    g.fillStyle=(x+y)%2?'#73b25f':'#6dab5a'; g.fillRect(x*P,y*P,P,P);
+    if(v===1){ g.fillStyle=r<.5?'#e6c98f':'#e1c387'; g.fillRect(x*P,y*P,P,P); if(r<.4) el(g,x*P+8+r*40,y*P+10+r*40,3,2,'#cfae70'); }
+    else if(v===0){
+      if(r>.5){ g.fillStyle='#5c9a4d'; g.fillRect(x*P+6+r*16,y*P+8+r*14,2,6); g.fillRect(x*P+11+r*16,y*P+10+r*14,2,5); }
+      if(r>.78){ const fx=x*P+10+r*12, fy=y*P+26-r*8, col=r>.9?'#ffd95a':'#fff6fb';
+        el(g,fx-3,fy,2.4,2.4,col); el(g,fx+3,fy,2.4,2.4,col); el(g,fx,fy-3,2.4,2.4,col); el(g,fx,fy+3,2.4,2.4,col); el(g,fx,fy,1.8,1.8,'#e98a2b'); }
+    }
+  }
+  g.fillStyle='#4f8a48'; rr(g,3*P-8,12*P-8,4*P+16,4*P+16,38); g.fill();
+  const t=new THREE.CanvasTexture(c); if(R3) t.anisotropy=Math.min(8,R3.capabilities.getMaxAnisotropy()); return t;
+}
+
+const world = new THREE.Group(); scene.add(world);
+(function buildWorld(){
+  const far = new THREE.Mesh(new THREE.PlaneGeometry(140,140).rotateX(-Math.PI/2), new THREE.MeshStandardMaterial({color:'#4f9a55', roughness:1})); far.position.set(MW/2,-.03,MH/2); world.add(far);
+  const gr = new THREE.Mesh(new THREE.PlaneGeometry(MW,MH).rotateX(-Math.PI/2), new THREE.MeshStandardMaterial({map:groundTexture(), roughness:1})); gr.position.set(MW/2,0,MH/2); world.add(gr);
+  // lacul
+  const w1=part(world,'cyl','#3f8fb5',[2.05,.04,2.05],[5,.0,14],null,false); w1.material=new THREE.MeshStandardMaterial({color:'#4aa3cc', roughness:.25, metalness:.1});
+  part(world,'ball','#3f9a5c',[.3,.03,.22],[5.7,.04,14.9]); part(world,'ball','#f6a9c4',[.09,.07,.09],[5.75,.09,14.85]);
+  // copaci
+  TREES.forEach(t=>{
+    const g=new THREE.Group(), v=rnd(t.x+9,t.y+3), k=(t.big?1.9:.85+v*.4);
+    const g1=v<.33?'#2f7a4c':v<.66?'#37875a':'#2b6f52', g2=v<.5?'#43996a':'#4aa16a';
+    part(g,'cyl','#7a5234',[.1,.6,.1],[0,.3,0],null,true);
+    part(g,'rock',g1,[.48,.44,.48],[0,.85,0],[v*3,v*5,0],true); part(g,'rock',g2,[.34,.32,.34],[.05,1.28,0],[v*2,v*7,1],true);
+    shadow(g,.45); g.scale.set(k,k,k); g.position.set(t.x+.5,0,t.y+.5); world.add(g);
+  });
+  // clădiri
+  BUILDINGS.forEach(b=>{
+    const g=new THREE.Group(), w=b.w-.5, d=b.h-.7;
+    part(g,'box',b.wall,[w,1.25,d],[0,.625,0],null,true);
+    part(g,'roof',b.roof,[w+.5,1.05,d+.5],[0,1.77,0],null,true);
+    part(g,'box','#6b4630',[.5,.8,.06],[0,.4,d/2+.02],null,true); part(g,'ball','#f7b21b',[.035,.035,.035],[.15,.4,d/2+.06]);
+    [-1,1].forEach(k=>{ part(g,'box','#2b2347',[.44,.4,.05],[k*(w/2-.5),.7,d/2+.01],null,true); part(g,'box','#bfe3f2',[.36,.32,.05],[k*(w/2-.5),.7,d/2+.03],null,true); });
+    const s=sprite(labelMat(b.sign,'#2b2347','#f7b21b',12),.36); s.position.set(0,1.42,d/2+.3); g.add(s);
+    g.position.set(b.x+b.w/2,0,b.y+b.h/2-.1); world.add(g);
+  });
+  // fântâna din piață
+  const f=new THREE.Group();
+  part(f,'cyl','#b9b5c6',[.5,.45,.5],[0,.225,0],null,true); part(f,'cyl','#3f8fb5',[.38,.02,.38],[0,.46,0]);
+  part(f,'box','#6b4630',[.07,1.1,.07],[-.46,.55,0],null,true); part(f,'box','#6b4630',[.07,1.1,.07],[.46,.55,0],null,true);
+  part(f,'roof','#b5532f',[1.25,.45,.9],[0,1.3,0],null,true); shadow(f,.75);
+  f.position.set(WELL.x/T,0,WELL.y/T-.15); world.add(f);
+  // vizuina bursucului
+  part(world,'ball','#8a6846',[.55,.3,.4],[23.5,.05,6.5],null,true); part(world,'ball','#3a2a22',[.25,.2,.1],[23.5,.12,6.86]);
+})();
+
+const MARK = {'!':markMat('!'), '?':markMat('?')};
+NPCS.forEach(n=>{
+  const ch=CHARS[n.id], g=buildCritter(ch.look); g.position.set(n.x,0,n.y); shadow(g,.34); world.add(g); n.obj=g;
+  n.lo=labelMat(ch.name,'rgba(33,28,63,.82)','#fff4d6'); n.hi=labelMat(ch.name,'#f7b21b','#2b2347');
+  const k=g.scale.x; n.label=sprite(n.lo,.3/k); n.label.position.y=g.userData.top/k+.08; g.add(n.label);
+  n.mark=sprite(MARK['!'],.55/k); n.mark.position.y=g.userData.top/k+.62; g.add(n.mark);
+});
+const hero = buildCritter(CHARS.bear.look); shadow(hero,.34); world.add(hero);
+let heroAng = 0; const camPos = new THREE.Vector3(), camAim = new THREE.Vector3(); let camReady = false;
+
+function draw(){
+  if(!R3) return;
+  const vw=cv.clientWidth, vh=cv.clientHeight, dpr=Math.min(window.devicePixelRatio||1,2);
+  if(cv.width!==Math.round(vw*dpr) || cv.height!==Math.round(vh*dpr)){ R3.setPixelRatio(dpr); R3.setSize(vw,vh,false); cam.aspect=vw/Math.max(1,vh); cam.updateProjectionMatrix(); }
+  const px=S.x/T, pz=S.y/T;
+  hero.position.set(px, walkT?Math.abs(Math.sin(walkT*11))*.07:0, pz);
+  let d=heroAng-hero.rotation.y; while(d>Math.PI) d-=Math.PI*2; while(d<-Math.PI) d+=Math.PI*2; hero.rotation.y+=d*.25;
+  hero.userData.body.rotation.z = walkT?Math.sin(walkT*11)*.07:0;
+  NPCS.forEach(n=>{
+    const dx=px-n.x, dz=pz-n.y, dist=Math.hypot(dx,dz);
+    if(dist<4){ let a=Math.atan2(dx,dz)-n.obj.rotation.y; while(a>Math.PI) a-=Math.PI*2; while(a<-Math.PI) a+=Math.PI*2; n.obj.rotation.y+=a*.12; }
+    n.obj.userData.body.position.y = (CHARS[n.id].look.legs==='long'?.3:0)+Math.sin(clock*2.2+n.x)*.012;
+    const want = near===n ? n.hi : n.lo; if(n.label.material!==want) n.label.material=want;
+    let mk=null;
+    if(n.kind==='station' && !S.clues.includes(stationOf(n.id).id)) mk='!';
+    if(n.kind==='mayor' && S.clues.length>=STATIONS.length && !S.won) mk='?';
+    n.mark.visible=!!mk; if(mk){ n.mark.material=MARK[mk]; n.mark.position.y=n.obj.userData.top/n.obj.scale.x+.62+Math.sin(clock*4+n.x)*.08; }
+  });
+  const far = cam.aspect<.8 ? 1.35 : cam.aspect<1.2 ? 1.12 : 1;
+  const tp=new THREE.Vector3(px, 8.6*far, pz+6.3*far), ta=new THREE.Vector3(px,.6,pz-.5);
+  if(!camReady){ camPos.copy(tp); camAim.copy(ta); camReady=true; } else { camPos.lerp(tp,.12); camAim.lerp(ta,.12); }
+  cam.position.copy(camPos); cam.lookAt(camAim);
+  R3.render(scene, cam);
+}
+
+/* ---------- mișcare ---------- */
+function blocked(x,y){
+  if(solidAt(x-11,y-8)||solidAt(x+11,y-8)||solidAt(x-11,y+3)||solidAt(x+11,y+3)) return true;
+  if(Math.hypot(x-WELL.x,(y-WELL.y)*1.6)<WELL.r+8) return true;
+  return NPCS.some(n => Math.hypot(x-n.x*T, y-n.y*T) < 26);
+}
+function update(dt){
+  clock += dt;
+  if(mode!=='play'){ walkT=0; return; }
+  let dx=(keys.right?1:0)-(keys.left?1:0)+joy.x, dy=(keys.down?1:0)-(keys.up?1:0)+joy.y;
+  if(Math.hypot(dx,dy)>.15){
+    const l=Math.hypot(dx,dy), sp=175*dt*Math.min(1,l); dx=dx/l*sp; dy=dy/l*sp;
+    heroAng=Math.atan2(dx,dy);
+    if(dx && !blocked(S.x+dx,S.y)) S.x+=dx;
+    if(dy && !blocked(S.x,S.y+dy)) S.y+=dy;
+    if(dx) facing = dx>0?1:-1;
+    walkT += dt;
+  } else walkT = 0;
+  let best=null, bd=1.45*T;
+  NPCS.forEach(n => { const d=Math.hypot(S.x-n.x*T,S.y-n.y*T); if(d<bd){bd=d;best=n;} });
+  if(best!==near){ near=best; refreshAct(); }
+}
+function refreshAct(){
+  const b=$('btnAct');
+  if(mode==='play' && near){ b.hidden=false; b.innerHTML='Vorbește cu '+CHARS[near.id].name+'<small>'+CHARS[near.id].role+'</small>'; }
+  else b.hidden=true;
+}
+function setMode(m){ mode=m; if(m!=='play'){ keys.up=keys.down=keys.left=keys.right=false; joy.x=joy.y=0; $('knob').style.transform=''; } $('pad').hidden = m!=='play'; refreshAct(); }
+
+/* ---------- replici ---------- */
+let queue=[], after=null;
+function say(lines, then){ queue=lines.slice(); after=then||null; setMode('talk'); $('dialog').hidden=false; nextLine(); }
+function nextLine(){
+  if(!queue.length){ $('dialog').hidden=true; const f=after; after=null; setMode('play'); if(f) f(); return; }
+  const l=queue.shift(), ch=CHARS[l.who];
+  portrait($('dPic'), l.who);
+  $('dWho').innerHTML = ch.name+'<span>'+ch.role+'</span>';
+  $('dText').textContent = l.text;
+  $('dNext').textContent = queue.length ? 'Mai departe' : 'Am înțeles';
+  $('dNext').focus({preventScroll:true});
+}
+$('dNext').addEventListener('click', nextLine);
+
+/* ---------- probe ---------- */
+const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+let quiz=null;
+function startQuiz(st){ quiz={st, list:shuffle(st.questions).slice(0,3), i:0, first:true}; setMode('quiz'); $('quiz').hidden=false; showQuestion(); }
+function showQuestion(){
+  const q=quiz.list[quiz.i]; quiz.first=true;
+  $('qTag').textContent=quiz.st.subject; $('qStep').textContent='Întrebarea '+(quiz.i+1)+' din '+quiz.list.length;
+  $('qText').textContent=q.q; $('qFeed').innerHTML='';
+  const box=$('qAns'); box.innerHTML=''; box.dataset.lock='';
+  shuffle(q.a.map((t,i)=>({t,i}))).forEach((o,n)=>{
+    const b=document.createElement('button'); b.type='button'; b.innerHTML='<i>'+(n+1)+'</i><span></span>'; b.lastChild.textContent=o.t;
+    b.addEventListener('click',()=>answer(b,o.i===q.c,q)); box.appendChild(b);
+  });
+}
+function answer(btn, ok, q){
+  if(btn.classList.contains('no') || $('qAns').dataset.lock==='1') return;
+  const feed=$('qFeed');
+  if(ok){
+    btn.classList.add('ok'); $('qAns').dataset.lock='1';
+    if(quiz.first){ S.stars++; hud(); }
+    const last = quiz.i===quiz.list.length-1;
+    feed.innerHTML='<span class="good">'+(quiz.first?'Corect din prima! Ai câștigat o stea.':'Corect! Bravo că n-ai renunțat.')+'</span>';
+    const nx=document.createElement('button'); nx.className='go'; nx.type='button'; nx.textContent= last?'Vezi indiciul':'Următoarea întrebare';
+    nx.addEventListener('click',()=>{ if(last) endQuiz(); else { quiz.i++; showQuestion(); } });
+    feed.appendChild(nx); nx.focus({preventScroll:true});
+  } else {
+    quiz.first=false; btn.classList.add('no'); btn.disabled=true;
+    feed.innerHTML='<span class="hint"></span>'; feed.firstChild.textContent='Mai încearcă. Ajutor: '+q.h;
+  }
+}
+function endQuiz(){
+  const st=quiz.st, cl=clueOf(st); quiz=null; $('quiz').hidden=true;
+  if(!S.clues.includes(st.id)) S.clues.push(st.id);
+  hud(); save();
+  const left = STATIONS.length - S.clues.length;
+  say([{who:st.npc, text:cl.text},
+       {who:'bear', text: left ? 'Notez în carnet: „'+cl.title+'”. Mai am de găsit '+left+(left===1?' indiciu.':' indicii.') : 'Notez în carnet: „'+cl.title+'”. Am toate cele cinci indicii! Mă uit în carnet, apoi merg la primărie, la bufnița Olga.'}]);
+}
+
+/* ---------- discuții ---------- */
+function talk(n){
+  if(n.kind==='station'){
+    const st=stationOf(n.id);
+    if(S.clues.includes(st.id)) return say([{who:n.id, text:'Ți-am spus deja ce știu. '+clueOf(st).text}]);
+    return say([{who:n.id, text:st.hello}], ()=>startQuiz(st));
+  }
+  if(n.kind==='suspect'){ const su=SUSPECTS.find(s=>s.id===n.id); return say([{who:n.id, text:su.line}]); }
+  if(S.won) return say([{who:'owl', text:'Festivalul Mierii a fost salvat datorită ție. Deschide carnetul dacă vrei un mister nou!'}]);
+  const left=STATIONS.length-S.clues.length;
+  if(left>0) return say([{who:'owl', text:'Mai ai de găsit '+left+(left===1?' indiciu':' indicii')+'. Caută martorii care au semnul „!” deasupra capului și deschide carnetul ca să vezi ce ai aflat.'}]);
+  say([{who:'owl', text:'Ai toate cele cinci indicii. Gândește-te bine: pe cine acuzi?'}], openAccuse);
+}
+function susButton(su, onClick){
+  const ch=CHARS[su.id], b=document.createElement('button'); b.type='button';
+  const c=document.createElement('canvas'); c.width=c.height=144; portrait(c,su.id);
+  b.appendChild(c); b.appendChild(document.createTextNode(ch.name+', '+ch.role));
+  const sm=document.createElement('small'); sm.textContent=su.traits; b.appendChild(sm);
+  b.addEventListener('click',()=>onClick(b)); return b;
+}
+function whyNot(su){
+  const cu=culprit(), st=STATIONS.find(s => su[s.attr]!==cu[s.attr]);
+  return 'Nu se potrivește. '+st.say[cu[st.attr]]+' Dar '+CHARS[su.id].name+' '+st.has[su[st.attr]]+'.';
+}
+function openAccuse(){
+  const box=$('aSus'); box.innerHTML='';
+  SUSPECTS.forEach(su => box.appendChild(susButton(su, ()=>{
+    $('accuse').hidden=true;
+    if(su.id===S.culprit){
+      S.won=true; save();
+      const nm=CHARS[su.id].name;
+      say([{who:'owl', text:nm+'! Toate cele cinci indicii se potrivesc.'},
+           {who:su.id, text:'Eu am fost... Am vrut doar să gust un pic, dar mierea era atât de bună, încât am mâncat tot. Îmi pare tare rău!'},
+           {who:'bear', text:'Ai greșit, dar ai spus adevărul. Cum îndrepți lucrurile?'},
+           {who:su.id, text:'Ajut albinele toată ziua la stupi și aduc eu miere proaspătă pentru festival. Promit!'},
+           {who:'owl', text:'Așa să fie. Mulțumim, detective Martin! Ai gândit ca un detectiv adevărat.'}], showEnding);
+    }
+    else say([{who:'owl', text:whyNot(su)},{who:'bear', text:'Ai dreptate. Mă mai uit o dată în carnet.'}]);
+  })));
+  setMode('menu'); $('accuse').hidden=false;
+}
+$('aBack').addEventListener('click',()=>{ $('accuse').hidden=true; setMode('play'); });
+function showEnding(){
+  $('endStars').textContent = S.stars+' / '+MAXSTARS+' stele';
+  $('endRank').textContent = S.stars>=MAXSTARS-1 ? 'Rang: Detectiv-șef' : S.stars>=MAXSTARS-4 ? 'Rang: Detectiv priceput' : 'Rang: Detectiv ucenic';
+  setMode('menu'); $('ending').hidden=false;
+}
+$('endAgain').addEventListener('click',()=>{ $('ending').hidden=true; reset(); });
+
+/* ---------- carnet ---------- */
+function openCarnet(){
+  if(mode!=='play') return;
+  const ul=$('cClues'); ul.innerHTML='';
+  STATIONS.forEach(st=>{
+    const li=document.createElement('li');
+    if(S.clues.includes(st.id)){ const cl=clueOf(st), b=document.createElement('b'); b.textContent=cl.title; li.appendChild(b); li.appendChild(document.createTextNode(cl.text)); }
+    else { li.className='miss'; li.textContent='Indiciu negăsit. Caută-l pe '+CHARS[st.npc].name+', '+CHARS[st.npc].role+' ('+st.subject+').'; }
+    ul.appendChild(li);
+  });
+  const box=$('cSus'); box.innerHTML='';
+  SUSPECTS.forEach(su=>{
+    const b=susButton(su, btn=>{ const i=S.crossed.indexOf(su.id); if(i<0) S.crossed.push(su.id); else S.crossed.splice(i,1); btn.classList.toggle('x'); btn.setAttribute('aria-pressed', i<0); save(); });
+    if(S.crossed.includes(su.id)) b.classList.add('x'); b.setAttribute('aria-pressed', S.crossed.includes(su.id)); box.appendChild(b);
+  });
+  $('cReset').textContent='Mister nou, cu alt hoț'; $('cReset').dataset.sure='';
+  setMode('menu'); $('carnet').hidden=false;
+}
+$('btnCarnet').addEventListener('click', openCarnet);
+$('cClose').addEventListener('click',()=>{ $('carnet').hidden=true; setMode('play'); });
+$('cReset').addEventListener('click',e=>{
+  const b=e.currentTarget;
+  if(b.dataset.sure!=='1'){ b.dataset.sure='1'; b.textContent='Sigur? Apasă încă o dată'; return; }
+  $('carnet').hidden=true; reset();
+});
+
+/* ---------- stare ---------- */
+function hud(){ $('hudClues').textContent=S.clues.length; $('hudStars').textContent=S.stars; }
+function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
+function reset(){ S=fresh(Array.isArray(S.seen)?S.seen:[S.culprit]); facing=1; hud(); save(); setMode('play'); begin(); }
+function begin(){ if(!S.intro) say(STORY.intro, ()=>{ S.intro=true; save(); }); }
+function start(data){
+  let d = data && Array.isArray(data.clues) ? data : null;
+  if(!d){ try{ d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null'); }catch(e){ d=null; } }
+  if(d && Array.isArray(d.clues) && SUSPECTS.some(s=>s.id===d.culprit)){
+    S = Object.assign(S, d);
+    if(!Array.isArray(S.seen)) S.seen=[S.culprit];
+    S.clues = S.clues.filter(id => STATIONS.some(s=>s.id===id));
+    if(typeof S.x!=='number' || blocked(S.x,S.y)){ S.x=START.x; S.y=START.y; }
+  }
+  hud(); setMode('play'); begin();
+  let last=performance.now();
+  (function loop(now){ const dt=Math.min(.05,(now-last)/1000); last=now; update(dt); draw(); requestAnimationFrame(loop); })(last);
+  setInterval(()=>{ if(mode==='play') save(); }, 5000);
+}
+
+/* ---------- comenzi ---------- */
+const KEYMAP = {ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right'};
+window.addEventListener('keydown',e=>{
+  if(mode==='play'){
+    if(KEYMAP[e.key]){ keys[KEYMAP[e.key]]=true; e.preventDefault(); }
+    else if((e.key===' '||e.key==='Enter'||e.key==='e'||e.key==='E') && near && document.activeElement.tagName!=='BUTTON'){ e.preventDefault(); talk(near); }
+    else if(e.key==='c'||e.key==='C') openCarnet();
+  } else if(mode==='quiz' && /^[1-4]$/.test(e.key)){ const b=$('qAns').children[+e.key-1]; if(b) b.click(); }
+});
+window.addEventListener('keyup',e=>{ if(KEYMAP[e.key]) keys[KEYMAP[e.key]]=false; });
+window.addEventListener('blur',()=>{ keys.up=keys.down=keys.left=keys.right=false; });
+(function(){
+  const pad=$('pad'), knob=$('knob'); let id=null;
+  const move=e=>{ const r=pad.getBoundingClientRect(), m=r.width/2-22; let x=e.clientX-(r.left+r.width/2), y=e.clientY-(r.top+r.height/2); const l=Math.hypot(x,y); if(l>m){ x=x/l*m; y=y/l*m; }
+    knob.style.transform='translate('+x+'px,'+y+'px)'; joy.x=x/m; joy.y=y/m; };
+  const stop=()=>{ id=null; joy.x=joy.y=0; knob.style.transform=''; };
+  pad.addEventListener('pointerdown',e=>{ e.preventDefault(); if(mode!=='play') return; id=e.pointerId; try{ pad.setPointerCapture(id); }catch(_){} move(e); });
+  pad.addEventListener('pointermove',e=>{ if(e.pointerId===id) move(e); });
+  ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>pad.addEventListener(ev,e=>{ if(e.pointerId===id) stop(); }));
+  pad.addEventListener('contextmenu',e=>e.preventDefault());
+})();
+$('btnAct').addEventListener('click',()=>{ if(mode==='play' && near) talk(near); });
+
+window.claude?.hot?.snapshot?.(() => S);
+if(window.claude?.hot?.ready) window.claude.hot.ready(start); else start(window.claude?.hot?.data ?? {});
+</script>
+</body>
+</html>
