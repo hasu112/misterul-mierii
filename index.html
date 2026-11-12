@@ -86,7 +86,7 @@ button:focus-visible{outline:3px solid var(--honey);outline-offset:2px}
 .clues li{border-radius:14px;padding:10px 14px;background:#fff;border:3px solid var(--ink);font-size:16px}
 .clues li b{font-family:var(--display);display:block;font-size:17px}
 .clues li.miss{background:transparent;border-style:dashed;opacity:.65}
-.sus{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.sus{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:10px}
 .sus button{background:#fff;border:3px solid var(--ink);border-radius:16px;padding:8px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:var(--display);font-weight:700;font-size:16px;line-height:1.15;position:relative}
 .sus button canvas{width:72px;height:72px}
 .sus button small{font-family:var(--body);font-weight:400;font-size:12px;opacity:.7}
@@ -143,7 +143,7 @@ button:focus-visible{outline:3px solid var(--honey);outline-offset:2px}
       <div class="sub">Indicii găsite</div>
       <ul class="clues" id="cClues"></ul>
       <div class="sub">Suspecți</div>
-      <p class="note">Atinge un suspect ca să-l tai de pe listă când ești sigur că nu el este hoțul.</p>
+      <p class="note">Sub fiecare suspect scrie cum arată și cum trăiește. Atinge-l ca să-l tai de pe listă când nu se potrivește cu un indiciu.</p>
       <div class="sus" id="cSus"></div>
       <div class="foot">
         <button class="ghost" id="cReset" type="button">Începe jocul din nou</button>
@@ -155,7 +155,7 @@ button:focus-visible{outline:3px solid var(--honey);outline-offset:2px}
   <div class="veil" id="accuse" hidden>
     <div class="card">
       <h2>Cine a luat mierea?</h2>
-      <p class="note">Uită-te la indicii și alege cu grijă.</p>
+      <p class="note">Potrivește cele cinci indicii cu însușirile fiecărui suspect.</p>
       <div class="sus" id="aSus" style="margin-top:12px"></div>
       <div class="foot"><span></span><button class="ghost" id="aBack" type="button">Mă mai gândesc</button></div>
     </div>
@@ -167,7 +167,7 @@ button:focus-visible{outline:3px solid var(--honey);outline-offset:2px}
       <p>Festivalul Mierii poate începe. Satul Stupina îți mulțumește.</p>
       <div id="endStars"></div>
       <div id="endRank"></div>
-      <div class="foot" style="justify-content:center"><button class="go" id="endAgain" type="button">Joacă din nou, cu alte întrebări</button></div>
+      <div class="foot" style="justify-content:center"><button class="go" id="endAgain" type="button">Mister nou, cu alt hoț și alte întrebări</button></div>
     </div>
   </div>
 </main>
@@ -183,13 +183,6 @@ const STORY = {
     {who:'owl', text:'Mâine este Festivalul Mierii. Fără miere, nu avem festival! Avem șase suspecți, iar tu trebuie să afli cine e hoțul.'},
     {who:'bear', text:'Mă ocup eu! Vorbesc cu martorii care au semnul „!”, rezolv probele lor și adun cinci indicii.'},
     {who:'owl', text:'Când ai toate indiciile, vino înapoi la mine, în fața primăriei. Mult succes, detective!'}
-  ],
-  ending: [
-    {who:'owl', text:'Bursucul Barbu... Toate indiciile se potrivesc: patru labe, treaz noaptea, blană moale, coadă scurtă și niciun alibi.'},
-    {who:'badger', text:'Eu am fost... Am vrut doar să gust un pic, dar mierea era atât de bună, încât am mâncat tot. Îmi pare tare rău!'},
-    {who:'bear', text:'Ai greșit, Barbu, dar ai spus adevărul. Cum îndrepți lucrurile?'},
-    {who:'badger', text:'Ajut albinele toată ziua la stupi și aduc eu miere proaspătă pentru festival. Promit!'},
-    {who:'owl', text:'Așa să fie. Mulțumim, detective Martin! Ai gândit ca un detectiv adevărat.'}
   ]
 };
 
@@ -210,28 +203,33 @@ const CHARS = {
   rabbit: {name:'Rilă', role:'iepurele', look:{fur:'#f1ebe2',belly:'#ffffff',ears:'long',earInner:'#f2b6c0',snout:'muzzle',tail:'puff'}}
 };
 
-/* Suspecți: ce spun când vorbești cu ei și de ce sunt nevinovați */
+/* Suspecți. Hoțul se alege la întâmplare la fiecare joc nou.
+   legs: four / two | time: night / day (când e treaz) | coat: fur / spikes / feathers | tail: short / long | home: ground / tree */
 const SUSPECTS = [
-  {id:'fox', line:'Eu am dansat toată seara la horă. Coada mea lungă și stufoasă a măturat tot ringul!',
-   innocent:'Nu se potrivește. Biletul găsit spune că hoțul are coada scurtă, iar Vera are coada lungă și stufoasă.'},
-  {id:'badger', guilty:true, line:'Ăăă... eu am dormit. Da, da, am dormit! De ce am lăbuțele lipicioase? De la... rășină!'},
-  {id:'squirrel', line:'Eu mă culc odată cu soarele și mă trezesc odată cu el. Noaptea visez alune.',
-   innocent:'Nu se potrivește. Furtul a avut loc la miezul nopții, iar Rița este animal de zi și doarme toată noaptea.'},
-  {id:'hedgehog', line:'Ai grijă, înțep! Nici eu nu mă pot scărpina pe spate fără să mă înțep.',
-   innocent:'Nu se potrivește. Pe gard a rămas un smoc de blană moale, iar Țepi are numai țepi.'},
-  {id:'raven', line:'Cra! Eu nu merg pe jos, eu zbor. Am două picioare și două aripi.',
-   innocent:'Nu se potrivește. Hoțul a lăsat urme de patru labe, iar Cornel are două picioare și aripi.'},
-  {id:'rabbit', line:'Abia m-am întors de la bunica, de la Brașov. Am venit cu trenul de dimineață.',
-   innocent:'Nu se potrivește. Rilă a fost toată noaptea la Brașov. Șeful de gară i-a văzut biletul de tren.'}
+  {id:'fox', legs:'four', time:'night', coat:'fur', tail:'long', home:'ground', traits:'patru labe · blană · coadă lungă · trează noaptea · vizuină',
+   line:'Eu ies la plimbare doar noaptea. Ziua dorm în vizuina mea, cu coada lungă și stufoasă pe post de pernă.'},
+  {id:'badger', legs:'four', time:'night', coat:'fur', tail:'short', home:'ground', traits:'patru labe · blană · coadă scurtă · treaz noaptea · vizuină',
+   line:'Ăăă... eu dorm toată ziua în vizuină și ies doar noaptea. Coada mea? E scurtă, abia se vede.'},
+  {id:'squirrel', legs:'four', time:'day', coat:'fur', tail:'long', home:'tree', traits:'patru labe · blană · coadă lungă · trează ziua · copac',
+   line:'Eu mă culc odată cu soarele, în scorbura mea din copac. Ai văzut ce coadă lungă și pufoasă am?'},
+  {id:'hedgehog', legs:'four', time:'night', coat:'spikes', tail:'short', home:'ground', traits:'patru labe · țepi · coadă scurtă · treaz noaptea · culcuș la pământ',
+   line:'Ai grijă, înțep! Eu ies noaptea după râme și dorm ziua sub un tufiș. Coada mea e mică de tot.'},
+  {id:'raven', legs:'two', time:'day', coat:'feathers', tail:'long', home:'tree', traits:'două picioare · pene · coadă lungă · treaz ziua · copac',
+   line:'Cra! Eu am două picioare, două aripi și o coadă lungă de pene. Zbor numai ziua și dorm în cuibul meu din copac.'},
+  {id:'rabbit', legs:'four', time:'day', coat:'fur', tail:'short', home:'ground', traits:'patru labe · blană · coadă scurtă · treaz ziua · vizuină',
+   line:'Eu țopăi toată ziua pe pajiște, iar noaptea dorm în vizuină. Coada mea e doar un pămătuf mic.'}
 ];
 
-/* Probe: fiecare martor pune 3 întrebări alese la întâmplare, apoi dă un indiciu.
+/* Probe: fiecare martor pune 3 întrebări alese la întâmplare, apoi dă indiciul potrivit hoțului din jocul acesta.
    q = întrebarea, a = variante, c = numărul variantei corecte (începe de la 0), h = ajutor după o greșeală */
 const STATIONS = [
   {id:'math', npc:'beaver', subject:'Matematică',
    hello:'Eu păzesc cămara. Am văzut urmele hoțului, dar mai întâi ajută-mă să-mi refac socotelile din registru.',
-   title:'Urme de patru labe',
-   clue:'În noroiul din fața cămării sunt urme de patru labe. Hoțul merge în patru labe!',
+   attr:'legs',
+   clue:{four:{title:'Urme de patru labe', text:'În noroiul din fața cămării sunt urme de patru labe. Hoțul merge în patru labe!'},
+         two:{title:'Urme de pasăre', text:'În noroiul din fața cămării sunt urme de două picioare, ca de pasăre. Hoțul merge în două picioare!'}},
+   say:{four:'Urmele din noroi sunt de patru labe.', two:'Urmele din noroi sunt de două picioare, ca de pasăre.'},
+   has:{four:'merge în patru labe', two:'are doar două picioare'},
    questions:[
     {q:'Pe 3 rafturi stau câte 5 borcane. Câte borcane sunt în total?', a:['8','12','15','20'], c:2, h:'Adună 5 + 5 + 5 sau înmulțește 3 cu 5.'},
     {q:'Cât face 7 + 8?', a:['14','15','16','17'], c:1, h:'7 + 3 = 10. Din 8 ți-au mai rămas 5.'},
@@ -246,8 +244,11 @@ const STATIONS = [
    ]},
   {id:'science', npc:'bat', subject:'Științe',
    hello:'Eu sunt treaz toată noaptea, așa că am auzit ceva. Îți spun dacă știi câteva lucruri despre natură.',
-   title:'Furt la miezul nopții',
-   clue:'Am auzit ușa cămării scârțâind fix la miezul nopții. Hoțul este treaz noaptea. Cine doarme toată noaptea nu poate fi vinovat!',
+   attr:'time',
+   clue:{night:{title:'Furt la miezul nopții', text:'Am auzit ușa cămării scârțâind fix la miezul nopții. Hoțul este treaz noaptea!'},
+         day:{title:'Furt în zori', text:'Tocmai mă culcam, la răsăritul soarelui, când am auzit ușa cămării scârțâind. Hoțul este treaz ziua!'}},
+   say:{night:'Furtul a fost la miezul nopții.', day:'Furtul a fost ziua, la răsăritul soarelui.'},
+   has:{night:'doarme ziua și umblă doar noaptea', day:'doarme noaptea și umblă doar ziua'},
    questions:[
     {q:'Din ce fac albinele mierea?', a:['Din frunze','Din nectarul florilor','Din apă de ploaie','Din iarbă'], c:1, h:'Albinele zboară din floare în floare și adună un lichid dulce.'},
     {q:'Care dintre aceste animale este treaz noaptea?', a:['Găina','Barza','Liliacul','Fluturele'], c:2, h:'Zboară, dar nu este pasăre, și doarme ziua cu capul în jos.'},
@@ -261,8 +262,12 @@ const STATIONS = [
    ]},
   {id:'romanian', npc:'stork', subject:'Limba română',
    hello:'Am găsit ceva pe gardul școlii. Dar un detectiv bun știe să scrie și să citească bine! Să vedem.',
-   title:'Un smoc de blană moale',
-   clue:'Pe gardul școlii a rămas agățat un smoc de blană moale. Hoțul are blană, nu pene și nici țepi.',
+   attr:'coat',
+   clue:{fur:{title:'Un smoc de blană moale', text:'Pe gardul școlii a rămas agățat un smoc de blană moale. Hoțul are blană, nu pene și nici țepi.'},
+         spikes:{title:'Un țep ascuțit', text:'Pe gardul școlii a rămas înfipt un țep ascuțit. Hoțul are țepi, nu blană și nici pene.'},
+         feathers:{title:'O pană neagră', text:'Pe gardul școlii a rămas agățată o pană neagră. Hoțul are pene, nu blană și nici țepi.'}},
+   say:{fur:'Pe gard a rămas un smoc de blană moale.', spikes:'Pe gard a rămas un țep.', feathers:'Pe gard a rămas o pană.'},
+   has:{fur:'are blană moale', spikes:'are țepi', feathers:'are pene'},
    questions:[
     {q:'Câte silabe are cuvântul „detectiv”?', a:['2','3','4','5'], c:1, h:'Desparte-l bătând din palme: de-tec-tiv.'},
     {q:'Care cuvânt are înțeles opus pentru „întuneric”?', a:['noapte','umbră','lumină','beznă'], c:2, h:'Cauți opusul: ce apare când aprinzi becul?'},
@@ -277,8 +282,11 @@ const STATIONS = [
    ]},
   {id:'english', npc:'parrot', subject:'Engleză',
    hello:'Hello! Am găsit un bilet scris în engleză, lângă lac. Îl citim împreună dacă știi câteva cuvinte.',
-   title:'Biletul în engleză',
-   clue:'Pe bilet scrie: “The thief has a short tail.” Adică: hoțul are coada scurtă.',
+   attr:'tail',
+   clue:{short:{title:'Biletul în engleză', text:'Pe bilet scrie: “The thief has a short tail.” Adică: hoțul are coada scurtă.'},
+         long:{title:'Biletul în engleză', text:'Pe bilet scrie: “The thief has a long tail.” Adică: hoțul are coada lungă.'}},
+   say:{short:'Biletul spune că hoțul are coada scurtă.', long:'Biletul spune că hoțul are coada lungă.'},
+   has:{short:'are coada scurtă', long:'are coada lungă'},
    questions:[
     {q:'Ce înseamnă „bear”?', a:['urs','pasăre','albină','băiat'], c:0, h:'Este chiar animalul cu care joci acum.'},
     {q:'Ce culoare este „red”?', a:['verde','albastru','roșu','galben'], c:2, h:'Este culoarea căpșunilor.'},
@@ -291,9 +299,12 @@ const STATIONS = [
     {q:'„Long” înseamnă lung. Ce înseamnă „short”?', a:['scurt','gras','înalt','moale'], c:0, h:'Este opusul lui „lung”.'}
    ]},
   {id:'geo', npc:'rooster', subject:'Lumea din jur',
-   hello:'La gară se știe tot cine pleacă și cine vine. Îți arăt registrul dacă răspunzi la câteva întrebări.',
-   title:'Biletul de tren al lui Rilă',
-   clue:'Iepurele Rilă a plecat aseară la Brașov și s-a întors abia azi-dimineață. Am biletul lui: are alibi.',
+   hello:'La gară se știe tot cine pleacă și cine vine. De pe peron am văzut ceva! Îți spun, dacă răspunzi la câteva întrebări.',
+   attr:'home',
+   clue:{ground:{title:'A fugit într-o vizuină', text:'De pe peronul gării l-am văzut pe hoț fugind cu borcanul și ascunzându-se jos, la pământ. Hoțul locuiește la pământ, nu în copac!'},
+         tree:{title:'A urcat într-un copac', text:'De pe peronul gării l-am văzut pe hoț urcând cu borcanul într-un copac. Hoțul locuiește sus, în copac!'}},
+   say:{ground:'Hoțul s-a ascuns jos, la pământ.', tree:'Hoțul a urcat cu borcanul într-un copac.'},
+   has:{ground:'locuiește jos, la pământ', tree:'locuiește sus, în copac'},
    questions:[
     {q:'Care este capitala României?', a:['Cluj-Napoca','Iași','București','Brașov'], c:2, h:'Este cel mai mare oraș din țară.'},
     {q:'Care sunt culorile steagului României?', a:['roșu, alb, verde','albastru, galben, roșu','roșu, galben, verde','albastru, alb, roșu'], c:1, h:'Culoarea din mijloc este cea a mierii.'},
@@ -329,13 +340,24 @@ const NPCS = [
 const T = 48, MW = 26, MH = 18;
 const $ = id => document.getElementById(id);
 const cv = $('game'), cx = cv.getContext('2d');
-const SAVE_KEY = 'misterul-mierii-v1';
+const SAVE_KEY = 'misterul-mierii-v2';
 const START = {x:13*T, y:11.6*T};
 
-let S = {clues:[], stars:0, crossed:[], won:false, intro:false, x:START.x, y:START.y};
+const MAXSTARS = STATIONS.length*3;
+/* Alege hoțul: fiecare suspect este vinovat o dată, pe rând, înainte să se repete vreunul. */
+function nextCulprit(seen){
+  let pool = SUSPECTS.map(s=>s.id).filter(id => !seen.includes(id));
+  if(!pool.length){ const last=seen[seen.length-1]; seen.length=0; pool = SUSPECTS.map(s=>s.id).filter(id => id!==last); }
+  const id = pool[Math.floor(Math.random()*pool.length)]; seen.push(id); return id;
+}
+const fresh = (seen) => { seen=(seen||[]).slice(); const c=nextCulprit(seen); return {clues:[], stars:0, crossed:[], won:false, intro:false, x:START.x, y:START.y, culprit:c, seen}; };
+
+let S = fresh();
 let mode = 'play';            // play | talk | quiz | menu
 const keys = {up:false,down:false,left:false,right:false};
 let facing = 1, walkT = 0, near = null, clock = 0;
+const culprit = () => SUSPECTS.find(s => s.id===S.culprit) || SUSPECTS[0];
+const clueOf = st => st.clue[culprit()[st.attr]];
 
 /* ---------- harta ---------- */
 const G = Array.from({length:MH}, () => new Array(MW).fill(0)); // 0 iarbă, 1 drum, 2 apă, 3 copac, 4 clădire
@@ -578,7 +600,7 @@ function showQuestion(){
   const q=quiz.list[quiz.i]; quiz.first=true;
   $('qTag').textContent=quiz.st.subject; $('qStep').textContent='Întrebarea '+(quiz.i+1)+' din '+quiz.list.length;
   $('qText').textContent=q.q; $('qFeed').innerHTML='';
-  const box=$('qAns'); box.innerHTML='';
+  const box=$('qAns'); box.innerHTML=''; box.dataset.lock='';
   shuffle(q.a.map((t,i)=>({t,i}))).forEach((o,n)=>{
     const b=document.createElement('button'); b.type='button'; b.innerHTML='<i>'+(n+1)+'</i><span></span>'; b.lastChild.textContent=o.t;
     b.addEventListener('click',()=>answer(b,o.i===q.c,q)); box.appendChild(b);
@@ -593,7 +615,7 @@ function answer(btn, ok, q){
     const last = quiz.i===quiz.list.length-1;
     feed.innerHTML='<span class="good">'+(quiz.first?'Corect din prima! Ai câștigat o stea.':'Corect! Bravo că n-ai renunțat.')+'</span>';
     const nx=document.createElement('button'); nx.className='go'; nx.type='button'; nx.textContent= last?'Vezi indiciul':'Următoarea întrebare';
-    nx.addEventListener('click',()=>{ $('qAns').dataset.lock=''; if(last) endQuiz(); else { quiz.i++; showQuestion(); } });
+    nx.addEventListener('click',()=>{ if(last) endQuiz(); else { quiz.i++; showQuestion(); } });
     feed.appendChild(nx); nx.focus({preventScroll:true});
   } else {
     quiz.first=false; btn.classList.add('no'); btn.disabled=true;
@@ -601,23 +623,23 @@ function answer(btn, ok, q){
   }
 }
 function endQuiz(){
-  const st=quiz.st; quiz=null; $('quiz').hidden=true;
+  const st=quiz.st, cl=clueOf(st); quiz=null; $('quiz').hidden=true;
   if(!S.clues.includes(st.id)) S.clues.push(st.id);
   hud(); save();
   const left = STATIONS.length - S.clues.length;
-  say([{who:st.npc, text:st.clue},
-       {who:'bear', text: left ? 'Notez în carnet: „'+st.title+'”. Mai am de găsit '+left+(left===1?' indiciu.':' indicii.') : 'Notez în carnet: „'+st.title+'”. Am toate cele cinci indicii! Mă întorc la primărie, la bufnița Olga.'}]);
+  say([{who:st.npc, text:cl.text},
+       {who:'bear', text: left ? 'Notez în carnet: „'+cl.title+'”. Mai am de găsit '+left+(left===1?' indiciu.':' indicii.') : 'Notez în carnet: „'+cl.title+'”. Am toate cele cinci indicii! Mă uit în carnet, apoi merg la primărie, la bufnița Olga.'}]);
 }
 
 /* ---------- discuții ---------- */
 function talk(n){
   if(n.kind==='station'){
     const st=stationOf(n.id);
-    if(S.clues.includes(st.id)) return say([{who:n.id, text:'Ți-am spus deja ce știu: '+st.clue}]);
+    if(S.clues.includes(st.id)) return say([{who:n.id, text:'Ți-am spus deja ce știu. '+clueOf(st).text}]);
     return say([{who:n.id, text:st.hello}], ()=>startQuiz(st));
   }
   if(n.kind==='suspect'){ const su=SUSPECTS.find(s=>s.id===n.id); return say([{who:n.id, text:su.line}]); }
-  if(S.won) return say([{who:'owl', text:'Festivalul a fost salvat datorită ție, detective Martin!'}]);
+  if(S.won) return say([{who:'owl', text:'Festivalul Mierii a fost salvat datorită ție. Deschide carnetul dacă vrei un mister nou!'}]);
   const left=STATIONS.length-S.clues.length;
   if(left>0) return say([{who:'owl', text:'Mai ai de găsit '+left+(left===1?' indiciu':' indicii')+'. Caută martorii care au semnul „!” deasupra capului și deschide carnetul ca să vezi ce ai aflat.'}]);
   say([{who:'owl', text:'Ai toate cele cinci indicii. Gândește-te bine: pe cine acuzi?'}], openAccuse);
@@ -625,23 +647,35 @@ function talk(n){
 function susButton(su, onClick){
   const ch=CHARS[su.id], b=document.createElement('button'); b.type='button';
   const c=document.createElement('canvas'); c.width=c.height=144; portrait(c,su.id);
-  b.appendChild(c); b.appendChild(document.createTextNode(ch.name));
-  const sm=document.createElement('small'); sm.textContent=ch.role; b.appendChild(sm);
+  b.appendChild(c); b.appendChild(document.createTextNode(ch.name+', '+ch.role));
+  const sm=document.createElement('small'); sm.textContent=su.traits; b.appendChild(sm);
   b.addEventListener('click',()=>onClick(b)); return b;
+}
+function whyNot(su){
+  const cu=culprit(), st=STATIONS.find(s => su[s.attr]!==cu[s.attr]);
+  return 'Nu se potrivește. '+st.say[cu[st.attr]]+' Dar '+CHARS[su.id].name+' '+st.has[su[st.attr]]+'.';
 }
 function openAccuse(){
   const box=$('aSus'); box.innerHTML='';
   SUSPECTS.forEach(su => box.appendChild(susButton(su, ()=>{
     $('accuse').hidden=true;
-    if(su.guilty){ S.won=true; save(); say(STORY.ending, showEnding); }
-    else say([{who:'owl', text:su.innocent},{who:'bear', text:'Ai dreptate. Mă mai uit o dată în carnet.'}]);
+    if(su.id===S.culprit){
+      S.won=true; save();
+      const nm=CHARS[su.id].name;
+      say([{who:'owl', text:nm+'! Toate cele cinci indicii se potrivesc.'},
+           {who:su.id, text:'Eu am fost... Am vrut doar să gust un pic, dar mierea era atât de bună, încât am mâncat tot. Îmi pare tare rău!'},
+           {who:'bear', text:'Ai greșit, dar ai spus adevărul. Cum îndrepți lucrurile?'},
+           {who:su.id, text:'Ajut albinele toată ziua la stupi și aduc eu miere proaspătă pentru festival. Promit!'},
+           {who:'owl', text:'Așa să fie. Mulțumim, detective Martin! Ai gândit ca un detectiv adevărat.'}], showEnding);
+    }
+    else say([{who:'owl', text:whyNot(su)},{who:'bear', text:'Ai dreptate. Mă mai uit o dată în carnet.'}]);
   })));
   setMode('menu'); $('accuse').hidden=false;
 }
 $('aBack').addEventListener('click',()=>{ $('accuse').hidden=true; setMode('play'); });
 function showEnding(){
-  $('endStars').textContent = S.stars+' / 15 stele';
-  $('endRank').textContent = S.stars>=13 ? 'Rang: Detectiv-șef' : S.stars>=9 ? 'Rang: Detectiv priceput' : 'Rang: Detectiv ucenic';
+  $('endStars').textContent = S.stars+' / '+MAXSTARS+' stele';
+  $('endRank').textContent = S.stars>=MAXSTARS-1 ? 'Rang: Detectiv-șef' : S.stars>=MAXSTARS-4 ? 'Rang: Detectiv priceput' : 'Rang: Detectiv ucenic';
   setMode('menu'); $('ending').hidden=false;
 }
 $('endAgain').addEventListener('click',()=>{ $('ending').hidden=true; reset(); });
@@ -652,7 +686,7 @@ function openCarnet(){
   const ul=$('cClues'); ul.innerHTML='';
   STATIONS.forEach(st=>{
     const li=document.createElement('li');
-    if(S.clues.includes(st.id)){ const b=document.createElement('b'); b.textContent=st.title; li.appendChild(b); li.appendChild(document.createTextNode(st.clue)); }
+    if(S.clues.includes(st.id)){ const cl=clueOf(st), b=document.createElement('b'); b.textContent=cl.title; li.appendChild(b); li.appendChild(document.createTextNode(cl.text)); }
     else { li.className='miss'; li.textContent='Indiciu negăsit. Caută-l pe '+CHARS[st.npc].name+', '+CHARS[st.npc].role+' ('+st.subject+').'; }
     ul.appendChild(li);
   });
@@ -661,7 +695,7 @@ function openCarnet(){
     const b=susButton(su, btn=>{ const i=S.crossed.indexOf(su.id); if(i<0) S.crossed.push(su.id); else S.crossed.splice(i,1); btn.classList.toggle('x'); btn.setAttribute('aria-pressed', i<0); save(); });
     if(S.crossed.includes(su.id)) b.classList.add('x'); b.setAttribute('aria-pressed', S.crossed.includes(su.id)); box.appendChild(b);
   });
-  $('cReset').textContent='Începe jocul din nou'; $('cReset').dataset.sure='';
+  $('cReset').textContent='Mister nou, cu alt hoț'; $('cReset').dataset.sure='';
   setMode('menu'); $('carnet').hidden=false;
 }
 $('btnCarnet').addEventListener('click', openCarnet);
@@ -675,13 +709,14 @@ $('cReset').addEventListener('click',e=>{
 /* ---------- stare ---------- */
 function hud(){ $('hudClues').textContent=S.clues.length; $('hudStars').textContent=S.stars; }
 function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
-function reset(){ S={clues:[],stars:0,crossed:[],won:false,intro:false,x:START.x,y:START.y}; facing=1; hud(); save(); setMode('play'); begin(); }
+function reset(){ S=fresh(Array.isArray(S.seen)?S.seen:[S.culprit]); facing=1; hud(); save(); setMode('play'); begin(); }
 function begin(){ if(!S.intro) say(STORY.intro, ()=>{ S.intro=true; save(); }); }
 function start(data){
   let d = data && Array.isArray(data.clues) ? data : null;
   if(!d){ try{ d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null'); }catch(e){ d=null; } }
-  if(d && Array.isArray(d.clues)){
+  if(d && Array.isArray(d.clues) && SUSPECTS.some(s=>s.id===d.culprit)){
     S = Object.assign(S, d);
+    if(!Array.isArray(S.seen)) S.seen=[S.culprit];
     S.clues = S.clues.filter(id => STATIONS.some(s=>s.id===id));
     if(typeof S.x!=='number' || blocked(S.x,S.y)){ S.x=START.x; S.y=START.y; }
   }

@@ -344,8 +344,13 @@ const cv = $('game'), cx = cv.getContext('2d');
 const SAVE_KEY = 'secretul-piramidei-v1';
 const START = {x:14*T, y:10.6*T};
 const MAXSTARS = STATIONS.length*3;
-const pickCulprit = () => SUSPECTS[Math.floor(Math.random()*SUSPECTS.length)].id;
-const fresh = () => ({clues:[], stars:0, crossed:[], won:false, intro:false, x:START.x, y:START.y, culprit:pickCulprit()});
+/* Alege hoțul: fiecare suspect este vinovat o dată, pe rând, înainte să se repete vreunul. */
+function nextCulprit(seen){
+  let pool = SUSPECTS.map(s=>s.id).filter(id => !seen.includes(id));
+  if(!pool.length){ const last=seen[seen.length-1]; seen.length=0; pool = SUSPECTS.map(s=>s.id).filter(id => id!==last); }
+  const id = pool[Math.floor(Math.random()*pool.length)]; seen.push(id); return id;
+}
+const fresh = (seen) => { seen=(seen||[]).slice(); const c=nextCulprit(seen); return {clues:[], stars:0, crossed:[], won:false, intro:false, x:START.x, y:START.y, culprit:c, seen}; };
 
 let S = fresh();
 let mode = 'play';            // play | talk | quiz | menu
@@ -710,13 +715,14 @@ $('cReset').addEventListener('click',e=>{
 /* ---------- stare ---------- */
 function hud(){ $('hudClues').textContent=S.clues.length; $('hudStars').textContent=S.stars; }
 function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
-function reset(){ const old=S.culprit; S=fresh(); if(S.culprit===old) S.culprit=SUSPECTS[(SUSPECTS.findIndex(s=>s.id===old)+1+Math.floor(Math.random()*(SUSPECTS.length-1)))%SUSPECTS.length].id; facing=1; hud(); save(); setMode('play'); begin(); }
+function reset(){ S=fresh(Array.isArray(S.seen)?S.seen:[S.culprit]); facing=1; hud(); save(); setMode('play'); begin(); }
 function begin(){ if(!S.intro) say(STORY.intro, ()=>{ S.intro=true; save(); }); }
 function start(data){
   let d = data && Array.isArray(data.clues) ? data : null;
   if(!d){ try{ d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null'); }catch(e){ d=null; } }
   if(d && Array.isArray(d.clues) && SUSPECTS.some(s=>s.id===d.culprit)){
     S = Object.assign(S, d);
+    if(!Array.isArray(S.seen)) S.seen=[S.culprit];
     S.clues = S.clues.filter(id => STATIONS.some(s=>s.id===id));
     if(typeof S.x!=='number' || blocked(S.x,S.y)){ S.x=START.x; S.y=START.y; }
   }
