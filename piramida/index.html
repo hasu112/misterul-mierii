@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secretul piramidei</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: one-screen game. Lapis-blue HUD strip on top, the desert canvas fills the rest,
+     paper-coloured speech and quiz panels slide over the bottom. Single visual world, no theme switch. */
+  --night:#14304f;
+  --night-soft:#24486f;
+  --paper:#fff3d4;
+  --ink:#1d2a44;
+  --honey:#f2b01e;
+  --honey-deep:#d98a00;
+  --mint:#23966a;
+  --berry:#cf3f66;
+  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --body:"Andika","Verdana",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--night);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.45;
+  display:flex;flex-direction:column;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;cursor:pointer;border:0}
+button:focus-visible{outline:3px solid var(--honey);outline-offset:2px}
+
+#hud{display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--night);color:var(--paper);flex:none;flex-wrap:wrap}
+#hud h1{font-family:var(--display);font-weight:800;font-size:22px;line-height:1.1;margin:0;color:var(--honey);flex:1 1 auto;text-wrap:balance}
+.chip{font-family:var(--display);font-weight:700;font-size:16px;background:var(--night-soft);border-radius:999px;padding:4px 14px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.chip b{color:var(--honey)}
+#btnCarnet{font-family:var(--display);font-weight:700;font-size:16px;background:var(--honey);color:var(--ink);border-radius:999px;padding:6px 18px;box-shadow:0 3px 0 var(--honey-deep)}
+#btnCarnet:active{transform:translateY(2px);box-shadow:0 1px 0 var(--honey-deep)}
+
+#stage{position:relative;flex:1 1 auto;min-height:0;background:#e2c27a}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+/* touch controls */
+#pad{position:absolute;left:16px;bottom:16px;width:150px;height:150px;touch-action:none}
+#pad button{position:absolute;width:50px;height:50px;border-radius:14px;background:rgba(20,48,79,.72);color:var(--paper);font-size:20px;font-family:var(--display);font-weight:800;touch-action:none}
+#pad button.on{background:var(--honey);color:var(--ink)}
+#pU{left:50px;top:0}#pD{left:50px;top:100px}#pL{left:0;top:50px}#pR{left:100px;top:50px}
+#btnAct{position:absolute;right:16px;bottom:24px;max-width:calc(100% - 200px);font-family:var(--display);font-weight:800;font-size:19px;background:var(--honey);color:var(--ink);
+  border-radius:20px;padding:14px 22px;box-shadow:0 5px 0 var(--honey-deep),0 10px 22px rgba(0,0,0,.25)}
+#btnAct:active{transform:translateY(3px);box-shadow:0 2px 0 var(--honey-deep)}
+#btnAct small{display:block;font-family:var(--body);font-weight:400;font-size:12px;opacity:.75}
+[hidden]{display:none!important}
+
+/* speech panel */
+#dialog{position:absolute;left:0;right:0;bottom:0;padding:0 16px 16px;display:flex;justify-content:center;pointer-events:none}
+.speech{pointer-events:auto;width:min(720px,100%);background:var(--paper);border:4px solid var(--ink);border-radius:22px;padding:16px 18px;
+  display:grid;grid-template-columns:84px 1fr;gap:6px 14px;box-shadow:0 8px 0 rgba(20,48,79,.35)}
+.speech canvas{width:84px;height:84px;background:#bfe6e0;border-radius:16px;border:3px solid var(--ink);grid-row:1 / span 2}
+.speech .who{font-family:var(--display);font-weight:800;font-size:20px;line-height:1.1;color:var(--honey-deep)}
+.speech .who span{font-family:var(--body);font-weight:400;font-size:14px;color:var(--ink);opacity:.7;margin-left:6px}
+.speech p{margin:0;font-size:18px;max-width:60ch}
+.speech .row{grid-column:1 / -1;display:flex;justify-content:flex-end}
+.go{font-family:var(--display);font-weight:800;font-size:18px;background:var(--ink);color:var(--paper);border-radius:14px;padding:8px 22px}
+.go:active{transform:translateY(2px)}
+
+/* modals */
+.veil{position:absolute;inset:0;background:rgba(20,48,79,.62);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+.card{width:min(640px,100%);max-height:100%;overflow:auto;background:var(--paper);border:4px solid var(--ink);border-radius:24px;padding:20px 22px;box-shadow:0 10px 0 rgba(20,48,79,.4)}
+.card h2{font-family:var(--display);font-weight:800;font-size:26px;line-height:1.15;margin:0 0 4px;text-wrap:balance}
+.tagrow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.tag{font-family:var(--display);font-weight:700;font-size:15px;background:var(--ink);color:var(--honey);border-radius:999px;padding:2px 14px}
+.step{font-size:14px;opacity:.75;font-variant-numeric:tabular-nums}
+#qText{font-size:21px;font-weight:700;margin:6px 0 14px;max-width:48ch}
+#qAns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#qAns button{font-size:19px;font-weight:700;text-align:left;background:#fff;border:3px solid var(--ink);border-radius:16px;padding:12px 14px;display:flex;gap:10px;align-items:baseline;min-height:56px}
+#qAns button i{font-style:normal;font-family:var(--display);font-size:14px;opacity:.5}
+#qAns button.ok{background:var(--mint);color:#fff;border-color:var(--mint)}
+#qAns button.no{background:#f6d5dd;color:var(--berry);border-color:var(--berry);text-decoration:line-through;cursor:default}
+#qFeed{min-height:58px;margin-top:12px;font-size:17px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+#qFeed .good{color:var(--mint);font-weight:700}
+#qFeed .hint{color:var(--berry)}
+@media (max-width:460px){#qAns{grid-template-columns:1fr}#hud h1{font-size:19px;flex-basis:100%}.speech{grid-template-columns:64px 1fr}.speech canvas{width:64px;height:64px}}
+
+.sub{font-family:var(--display);font-weight:700;font-size:18px;margin:16px 0 6px}
+.clues{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.clues li{border-radius:14px;padding:10px 14px;background:#fff;border:3px solid var(--ink);font-size:16px}
+.clues li b{font-family:var(--display);display:block;font-size:17px}
+.clues li.miss{background:transparent;border-style:dashed;opacity:.65}
+.sus{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:10px}
+.sus button{background:#fff;border:3px solid var(--ink);border-radius:16px;padding:8px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:var(--display);font-weight:700;font-size:16px;line-height:1.15;position:relative}
+.sus button canvas{width:72px;height:72px}
+.sus button small{font-family:var(--body);font-weight:400;font-size:12px;opacity:.7}
+.sus button.x{background:#e9e2cf;opacity:.6}
+.sus button.x::after{content:"";position:absolute;left:12%;right:12%;top:38%;height:6px;border-radius:3px;background:var(--berry);transform:rotate(-18deg)}
+.note{font-size:14px;opacity:.75;margin:4px 0 0}
+.foot{display:flex;justify-content:space-between;gap:10px;margin-top:18px;flex-wrap:wrap}
+.ghost{background:transparent;border:3px solid var(--ink);border-radius:14px;padding:6px 16px;font-family:var(--display);font-weight:700;font-size:16px}
+#endStars{font-family:var(--display);font-weight:800;font-size:44px;color:var(--honey-deep);line-height:1.1;font-variant-numeric:tabular-nums}
+#endRank{font-family:var(--display);font-weight:800;font-size:22px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header id="hud">
+  <h1>Secretul piramidei</h1>
+  <span class="chip">Indicii <b id="hudClues">0</b>/4</span>
+  <span class="chip">Stele <b id="hudStars">0</b>/12</span>
+  <button id="btnCarnet" type="button">Carnetul detectivului</button>
+</header>
+
+<main id="stage">
+  <canvas id="game" aria-label="Deșertul cu piramide văzut de sus. Mergi cu săgețile și vorbește cu personajele."></canvas>
+
+  <div id="pad" aria-label="Butoane de mers">
+    <button id="pU" type="button" aria-label="Sus">▲</button>
+    <button id="pL" type="button" aria-label="Stânga">◀</button>
+    <button id="pR" type="button" aria-label="Dreapta">▶</button>
+    <button id="pD" type="button" aria-label="Jos">▼</button>
+  </div>
+  <button id="btnAct" type="button" hidden></button>
+
+  <div id="dialog" hidden>
+    <div class="speech">
+      <canvas id="dPic" width="168" height="168"></canvas>
+      <div class="who" id="dWho"></div>
+      <p id="dText"></p>
+      <div class="row"><button class="go" id="dNext" type="button">Mai departe</button></div>
+    </div>
+  </div>
+
+  <div class="veil" id="quiz" hidden>
+    <div class="card">
+      <div class="tagrow"><span class="tag" id="qTag"></span><span class="step" id="qStep"></span></div>
+      <div id="qText"></div>
+      <div id="qAns"></div>
+      <div id="qFeed"></div>
+    </div>
+  </div>
+
+  <div class="veil" id="carnet" hidden>
+    <div class="card">
+      <h2>Carnetul detectivului</h2>
+      <div class="sub">Indicii găsite</div>
+      <ul class="clues" id="cClues"></ul>
+      <div class="sub">Suspecți</div>
+      <p class="note">Sub fiecare suspect scrie cum arată și când e treaz. Atinge-l ca să-l tai de pe listă când nu se potrivește cu un indiciu.</p>
+      <div class="sus" id="cSus"></div>
+      <div class="foot">
+        <button class="ghost" id="cReset" type="button">Începe jocul din nou</button>
+        <button class="go" id="cClose" type="button">Închide carnetul</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="veil" id="accuse" hidden>
+    <div class="card">
+      <h2>Cine a luat Scarabeul de Aur?</h2>
+      <p class="note">Potrivește cele patru indicii cu însușirile fiecărui suspect.</p>
+      <div class="sus" id="aSus" style="margin-top:12px"></div>
+      <div class="foot"><span></span><button class="ghost" id="aBack" type="button">Mă mai gândesc</button></div>
+    </div>
+  </div>
+
+  <div class="veil" id="ending" hidden>
+    <div class="card" style="text-align:center">
+      <h2>Caz rezolvat!</h2>
+      <p>Scarabeul de Aur s-a întors în Marea Piramidă.</p>
+      <div id="endStars"></div>
+      <div id="endRank"></div>
+      <div class="foot" style="justify-content:center"><button class="go" id="endAgain" type="button">Mister nou, cu alt hoț și alte întrebări</button></div>
+    </div>
+  </div>
+</main>
+
+<script>
+/* =====================================================================
+   CONȚINUTUL JOCULUI. Poveste, personaje și întrebări: totul este aici,
+   sus, ca să poată fi schimbat ușor.
+   ===================================================================== */
+const STORY = {
+  intro: [
+    {who:'lion', text:'Detective Martin, bine ai venit în Egipt! Azi-noapte a dispărut Scarabeul de Aur din Marea Piramidă.'},
+    {who:'lion', text:'Avem șase suspecți. Patru martori au văzut câte ceva, dar fiecare îți spune ce știe doar dacă răspunzi la întrebările lui.'},
+    {who:'bear', text:'Am înțeles! Caut martorii cu semnul „!”, adun patru indicii și le potrivesc cu suspecții din carnet.'},
+    {who:'lion', text:'Când știi cine e hoțul, vino la mine, la intrarea în piramidă. Succes, detective!'}
+  ]
+};
+
+/* Personaje: nume, rol și înfățișare */
+const CHARS = {
+  bear:   {name:'Martin', role:'detectiv', look:{fur:'#8d5b3a',belly:'#e0bb8c',ears:'round',snout:'muzzle',tail:'short',hat:'#5b3f8f'}},
+  lion:   {name:'Ramses', role:'leul paznic', look:{fur:'#e3ab4c',belly:'#f7e2b4',ears:'round',snout:'muzzle',mane:'#a55d27',tail:'short',scale:1.15}},
+  owl:    {name:'Stela', role:'bufnița astronom', look:{fur:'#8a6a45',belly:'#e9d3a6',ears:'tuft',snout:'beak',beak:'#f0a72a',mask:'owl',wings:'#6f5234',tail:'none'}},
+  mole:   {name:'Săpăilă', role:'cârtița paleontolog', look:{fur:'#5b4a55',belly:'#8c7884',ears:'none',snout:'muzzle',muzzle:'#f2b9b0',tail:'short',hat:'#e9a51c',scale:.9}},
+  parrot: {name:'Polly', role:'papagalul călător', look:{fur:'#2fa866',belly:'#f4d23c',head:'#e2503c',ears:'none',snout:'hook',beak:'#3a3340',wings:'#2378b8',tail:'feather',tip:'#2378b8'}},
+  hedgehog:{name:'Cactus', role:'ariciul grădinar', look:{fur:'#e3c6a0',belly:'#f3e2c8',ears:'none',snout:'muzzle',spikes:'#6a4a34',tail:'none',scale:.85}},
+  cat:    {name:'Nefi', role:'pisica', look:{fur:'#b98f5a',belly:'#f3e2c0',ears:'pointy',snout:'muzzle',tail:'long',scarf:'#d8343f',scale:.84}},
+  jackal: {name:'Șaki', role:'șacalul', look:{fur:'#4b4459',belly:'#8f88a6',ears:'pointy',snout:'muzzle',tail:'bushy',tip:'#2c2836',scarf:'#2d6fd6',scale:1.16}},
+  fennec: {name:'Fifi', role:'vulpea fenec', look:{fur:'#efcb92',belly:'#fff6e6',ears:'huge',earInner:'#f2b6a0',snout:'muzzle',tail:'bushy',tip:'#5a4630',scarf:'#2d6fd6',scale:.8}},
+  camel:  {name:'Camelia', role:'cămila', look:{fur:'#c88d4c',belly:'#e6bf88',ears:'round',snout:'muzzle',hump:true,tail:'short',legs:'long',legColor:'#9a6a36',scarf:'#d8343f',scale:1.14}},
+  ibis:   {name:'Tibi', role:'ibisul', look:{fur:'#f6f3ea',belly:'#ffffff',head:'#34303c',ears:'none',snout:'longbeak',beak:'#34303c',wings:'#34303c',tail:'none',legs:'long',legColor:'#34303c',scarf:'#d8343f',scale:1.12}},
+  falcon: {name:'Horică', role:'șoimul', look:{fur:'#8b6a48',belly:'#f1e2c4',ears:'none',snout:'beak',beak:'#f0a72a',wings:'#5c4630',tail:'feather',tip:'#5c4630',scarf:'#2d6fd6',scale:.84}}
+};
+
+/* Suspecți. Hoțul se alege la întâmplare la fiecare joc nou.
+   coat: fur = blană, feather = pene | scarf: red / blue | size: big / small | time: night / day (când e treaz) */
+const SUSPECTS = [
+  {id:'cat',    coat:'fur',     scarf:'red',  size:'small', time:'night', traits:'blană · eșarfă roșie · trup mic · trează noaptea',
+   line:'Miau! Eu sunt mică și mă strecor peste tot. Noaptea vânez, iar ziua dorm la soare, cu eșarfa mea roșie la gât.'},
+  {id:'jackal', coat:'fur',     scarf:'blue', size:'big',   time:'night', traits:'blană · eșarfă albastră · trup mare · treaz noaptea',
+   line:'Eu sunt cel mai mare paznic al dunelor. Stau treaz toată noaptea și urlu la lună. Ziua dorm.'},
+  {id:'fennec', coat:'fur',     scarf:'blue', size:'small', time:'night', traits:'blană · eșarfă albastră · trup mic · trează noaptea',
+   line:'Cu urechile astea mari aud tot! Ziua e prea cald pentru mine, așa că ies din vizuină doar noaptea.'},
+  {id:'camel',  coat:'fur',     scarf:'red',  size:'big',   time:'day',   traits:'blană · eșarfă roșie · trup mare · trează ziua',
+   line:'Eu plimb turiști toată ziua printre piramide. Noaptea dorm buștean, sunt prea obosită.'},
+  {id:'ibis',   coat:'feather', scarf:'red',  size:'big',   time:'day',   traits:'pene · eșarfă roșie · trup mare · treaz ziua',
+   line:'Eu pescuiesc în Nil cât e ziua de lungă. Noaptea dorm într-un picior, printre trestii.'},
+  {id:'falcon', coat:'feather', scarf:'blue', size:'small', time:'day',   traits:'pene · eșarfă albastră · trup mic · treaz ziua',
+   line:'Eu zbor sus de tot, dar numai ziua, când văd bine. Sunt mic, dar iute ca săgeata!'}
+];
+
+/* Probe: fiecare martor pune 3 întrebări alese la întâmplare, apoi dă indiciul potrivit hoțului din jocul acesta.
+   q = întrebarea, a = variante, c = numărul variantei corecte (începe de la 0), h = ajutor după o greșeală */
+const STATIONS = [
+  {id:'planet', npc:'owl', subject:'Planeta noastră', attr:'time',
+   hello:'Eu mă uit la cer cu luneta, zi și noapte. Am văzut ceva! Dar mai întâi arată-mi ce știi despre planeta noastră.',
+   clue:{night:{title:'Pași la miezul nopții', text:'Număram stelele la miezul nopții când am auzit pași lângă piramidă. Hoțul este treaz noaptea!'},
+         day:{title:'O umbră la amiază', text:'La amiază, când soarele era sus pe cer, am văzut o umbră fugind din piramidă. Hoțul este treaz ziua!'}},
+   say:{night:'Furtul a fost la miezul nopții.', day:'Furtul a fost ziua, la amiază.'},
+   has:{night:'doarme ziua și umblă doar noaptea', day:'doarme noaptea și umblă doar ziua'},
+   questions:[
+    {q:'Ce formă are Pământul?', a:['De farfurie','De minge','De cub','De piramidă'], c:1, h:'Uită-te la un glob pământesc.'},
+    {q:'Ce stea ne dă lumină și căldură?', a:['Luna','Steaua Polară','Soarele','Marte'], c:2, h:'O vezi pe cer în fiecare zi senină.'},
+    {q:'Cum se numește planeta pe care trăim?', a:['Marte','Pământ','Jupiter','Lună'], c:1, h:'I se mai spune și Terra.'},
+    {q:'Câte anotimpuri are un an?', a:['2','3','4','12'], c:2, h:'Primăvara, vara, toamna și...'},
+    {q:'Ce acoperă cea mai mare parte a Pământului?', a:['Nisipul','Pădurile','Apa','Gheața'], c:2, h:'De aceea i se spune „planeta albastră”.'},
+    {q:'De ce avem zi și noapte?', a:['Soarele se stinge seara','Pământul se învârte','Luna acoperă Soarele','Norii ascund lumina'], c:1, h:'Pământul se rotește ca un titirez și întoarce spre Soare, pe rând, câte o parte.'},
+    {q:'În ce țară se află piramidele acestea?', a:['România','Egipt','China','Franța'], c:1, h:'Leul Ramses ți-a spus la început unde ai ajuns.'},
+    {q:'Ce fluviu trece prin Egipt?', a:['Dunărea','Nilul','Amazonul','Mureșul'], c:1, h:'Este unul dintre cele mai lungi fluvii din lume și curge chiar lângă piramide.'},
+    {q:'Pe ce continent se află Egiptul?', a:['Europa','Asia','Africa','Australia'], c:2, h:'Este continentul cu lei, girafe și elefanți.'},
+    {q:'Cum se numește cel mai mare deșert fierbinte din lume?', a:['Sahara','Siberia','Bărăgan','Alpi'], c:0, h:'Se află în nordul Africii și începe cu litera S.'},
+    {q:'Unde este cel mai frig pe Pământ?', a:['În deșert','La poli','În junglă','La mare'], c:1, h:'Acolo trăiesc pinguinii și urșii polari.'},
+    {q:'Ce este un vulcan?', a:['Un lac foarte adânc','Un munte din care iese lavă','Un nor de furtună','O peșteră cu gheață'], c:1, h:'Când erupe, aruncă foc și cenușă.'},
+    {q:'Câte planete se învârt în jurul Soarelui?', a:['3','5','8','100'], c:2, h:'Mercur, Venus, Pământ, Marte, Jupiter, Saturn, Uranus, Neptun. Numără-le!'},
+    {q:'Ce vedem noaptea pe cer și pare că își schimbă forma?', a:['Soarele','Luna','Curcubeul','Norii'], c:1, h:'Uneori e rotundă, alteori e ca o seceră.'},
+    {q:'În cât timp înconjoară Pământul Soarele?', a:['Într-o zi','Într-o săptămână','Într-o lună','Într-un an'], c:3, h:'În timpul acesta trec toate cele patru anotimpuri.'},
+    {q:'Care este cel mai înalt munte din lume?', a:['Everest','Moldoveanu','Omu','Olimp'], c:0, h:'Se află în munții Himalaya, în Asia.'}
+   ]},
+  {id:'dino', npc:'mole', subject:'Dinozauri', attr:'size',
+   hello:'Eu sap după oase de dinozaur și mă pricep la urme. Am măsurat urmele hoțului! Îți spun, dacă știi câte ceva despre dinozauri.',
+   clue:{big:{title:'Urme mari în nisip', text:'Urmele din nisip sunt mari și adânci. Hoțul are trupul mare!'},
+         small:{title:'Urme mici în nisip', text:'Urmele din nisip sunt mici și abia se văd. Hoțul are trupul mic!'}},
+   say:{big:'Urmele hoțului sunt mari.', small:'Urmele hoțului sunt mici.'},
+   has:{big:'are trupul mare', small:'are trupul mic'},
+   questions:[
+    {q:'Când au trăit dinozaurii?', a:['Anul trecut','Pe vremea bunicilor','Acum milioane de ani','Săptămâna trecută'], c:2, h:'Cu foarte, foarte mult timp înainte să apară oamenii.'},
+    {q:'Ce mânca Tyrannosaurus rex?', a:['Carne','Iarbă','Fructe','Flori'], c:0, h:'Avea dinți mari și ascuțiți, ca niște cuțite.'},
+    {q:'Ce avea Triceratops pe cap?', a:['O creastă de pene','Trei coarne','O trompă','Urechi mari'], c:1, h:'„Tri” înseamnă trei.'},
+    {q:'Din ce ieșeau puii de dinozaur?', a:['Din ouă','Din semințe','Din apă','Din nisip'], c:0, h:'La fel ca puii de găină și de crocodil.'},
+    {q:'Cum se numesc oasele și urmele de dinozaur găsite în piatră?', a:['Scoici','Fosile','Bolovani','Cristale'], c:1, h:'Cuvântul începe cu litera F.'},
+    {q:'Cum se numește omul de știință care studiază dinozaurii?', a:['Astronaut','Paleontolog','Pompier','Bucătar'], c:1, h:'Chiar meseria lui Săpăilă!'},
+    {q:'Ce avea Stegosaurus pe spate?', a:['Aripi','Plăci mari de os','Blană lungă','O cocoașă'], c:1, h:'Arătau ca niște frunze mari, puse în șir.'},
+    {q:'Cum era gâtul lui Diplodocus?', a:['Foarte scurt','Foarte lung','Nu avea gât','Răsucit'], c:1, h:'Ajungea la frunzele din vârful copacilor.'},
+    {q:'Ce mâncau dinozaurii cu gâtul lung, ca Brachiosaurus?', a:['Pești','Alți dinozauri','Frunze și plante','Insecte'], c:2, h:'Erau erbivori.'},
+    {q:'Mai trăiesc dinozauri uriași în zilele noastre?', a:['Da, în păduri','Da, în mare','Nu, au dispărut','Da, la munte'], c:2, h:'Îi mai vedem doar ca schelete, la muzeu.'},
+    {q:'Care animale de azi sunt rudele dinozaurilor?', a:['Păsările','Pisicile','Peștii','Fluturii'], c:0, h:'Au pene și fac ouă.'},
+    {q:'Ce se crede că a căzut din cer și a dus la dispariția dinozaurilor?', a:['O ploaie mare','Un asteroid','Un avion','Un fulger'], c:1, h:'O piatră uriașă venită din spațiu.'},
+    {q:'Ce înseamnă cuvântul „dinozaur”?', a:['Șopârlă teribilă','Pasăre mare','Pește vechi','Urs de piatră'], c:0, h:'Dinozaurii erau reptile, ca șopârlele.'},
+    {q:'Cum era Velociraptor?', a:['Uriaș și încet','Mic și foarte rapid','Fără picioare','Trăia în apă'], c:1, h:'Numele lui înseamnă „hoț iute”.'},
+    {q:'Unde putem vedea schelete de dinozaur?', a:['La muzeu','La piață','La cinema','La gară'], c:0, h:'Acolo se păstrează lucrurile foarte vechi.'},
+    {q:'Pteranodonul trăia pe vremea dinozaurilor. Ce putea să facă?', a:['Să zboare','Să sape tuneluri','Să vorbească','Să înghețe apa'], c:0, h:'Avea aripi uriașe.'}
+   ]},
+  {id:'animal', npc:'parrot', subject:'Animale', attr:'coat',
+   hello:'Hello, detective! Ne-am mai întâlnit, nu? Am găsit ceva lângă cufărul gol. Îți arăt, dacă știi lucruri despre animale.',
+   clue:{fur:{title:'Un smoc de blană', text:'Lângă cufărul gol am găsit un smoc de blană. Hoțul are blană, nu pene!'},
+         feather:{title:'O pană', text:'Lângă cufărul gol am găsit o pană. Hoțul are pene, nu blană!'}},
+   say:{fur:'Lângă cufăr a rămas un smoc de blană.', feather:'Lângă cufăr a rămas o pană.'},
+   has:{fur:'are blană', feather:'are pene'},
+   questions:[
+    {q:'Ce animal are cocoașă și rezistă mult timp fără apă?', a:['Calul','Cămila','Vaca','Capra'], c:1, h:'Una dintre suspecte este chiar acest animal.'},
+    {q:'Care este cel mai mare animal de pe Pământ?', a:['Elefantul','Girafa','Balena albastră','Ursul'], c:2, h:'Trăiește în ocean.'},
+    {q:'Care este cel mai rapid animal de pe uscat?', a:['Ghepardul','Iepurele','Calul','Broasca țestoasă'], c:0, h:'Este o felină cu pete, din Africa.'},
+    {q:'Care animal are gâtul cel mai lung?', a:['Zebra','Girafa','Leul','Lupul'], c:1, h:'Mănâncă frunze din vârful copacilor.'},
+    {q:'Câte picioare are un păianjen?', a:['4','6','8','10'], c:2, h:'Cu două mai multe decât o insectă.'},
+    {q:'Ce animal își poartă casa în spate?', a:['Melcul','Furnica','Vrabia','Șoarecele'], c:0, h:'Merge foarte încet și lasă o dâră lucioasă.'},
+    {q:'Ce mănâncă un animal erbivor?', a:['Carne','Plante','Pești','Orice'], c:1, h:'„Erbivor” vine de la „iarbă”.'},
+    {q:'Cum se numește puiul de broască?', a:['Mormoloc','Vițel','Mânz','Boboc'], c:0, h:'Trăiește în apă și are coadă.'},
+    {q:'Care pasăre nu zboară, dar înoată foarte bine?', a:['Rândunica','Pinguinul','Vulturul','Barza'], c:1, h:'Trăiește printre ghețuri și pare îmbrăcat în frac.'},
+    {q:'Cu ce respiră peștii?', a:['Cu plămâni','Cu branhii','Cu nasul','Cu coada'], c:1, h:'Sunt niște fante pe lateralele capului.'},
+    {q:'În ce se transformă omida?', a:['În fluture','În albină','În râmă','În melc'], c:0, h:'Mai întâi stă într-un cocon, apoi îi cresc aripi colorate.'},
+    {q:'Care animal are trompă?', a:['Rinocerul','Hipopotamul','Elefantul','Tigrul'], c:2, h:'Cu ea bea apă și apucă mâncarea.'},
+    {q:'Care dintre aceste animale face miere?', a:['Furnica','Albina','Musca','Greierele'], c:1, h:'Trăiește în stup.'},
+    {q:'Ce animal doarme toată iarna în bârlog?', a:['Ursul','Vulpea','Vrabia','Căprioara'], c:0, h:'Detectivul nostru este unul!'},
+    {q:'Care dintre aceste animale trăiește în fluviul Nil?', a:['Pinguinul','Crocodilul','Ursul polar','Cangurul'], c:1, h:'Este o reptilă mare, cu mulți dinți.'},
+    {q:'Delfinul își hrănește puii cu lapte. Ce fel de animal este?', a:['Pește','Mamifer','Pasăre','Insectă'], c:1, h:'Animalele care își hrănesc puii cu lapte se numesc la fel ca vaca, pisica și omul.'}
+   ]},
+  {id:'plant', npc:'hedgehog', subject:'Plante', attr:'scarf',
+   hello:'Eu am grijă de plantele din oază. Azi am găsit ceva agățat într-un cactus! Îți arăt, dacă îmi răspunzi la câteva întrebări despre plante.',
+   clue:{red:{title:'Un fir roșu', text:'În țepii cactusului s-a agățat un fir roșu. Hoțul poartă eșarfă roșie!'},
+         blue:{title:'Un fir albastru', text:'În țepii cactusului s-a agățat un fir albastru. Hoțul poartă eșarfă albastră!'}},
+   say:{red:'Firul găsit în cactus este roșu.', blue:'Firul găsit în cactus este albastru.'},
+   has:{red:'poartă eșarfă roșie', blue:'poartă eșarfă albastră'},
+   questions:[
+    {q:'Ce parte ține planta prinsă în pământ?', a:['Rădăcina','Floarea','Frunza','Fructul'], c:0, h:'Este partea care nu se vede.'},
+    {q:'Ce plantă crește în deșert și are țepi?', a:['Laleaua','Cactusul','Ghiocelul','Trandafirul'], c:1, h:'Așa îl cheamă și pe ariciul grădinar.'},
+    {q:'De ce au nevoie plantele ca să crească?', a:['De apă și lumină','De zăpadă','De întuneric','De muzică'], c:0, h:'De aceea udăm florile și le ținem la fereastră.'},
+    {q:'Din ce crește o plantă nouă?', a:['Dintr-o piatră','Dintr-o sămânță','Dintr-o frunză uscată','Dintr-un nor'], c:1, h:'O pui în pământ, o uzi și aștepți să răsară.'},
+    {q:'Ce copac crește în oază și face curmale?', a:['Bradul','Palmierul','Mărul','Stejarul'], c:1, h:'Are trunchi înalt și frunze mari doar în vârf.'},
+    {q:'Ce culoare au de obicei frunzele vara?', a:['Albastre','Verzi','Negre','Albe'], c:1, h:'Este culoarea ierbii.'},
+    {q:'Care copac rămâne verde și iarna?', a:['Bradul','Nucul','Cireșul','Teiul'], c:0, h:'Îl împodobim de Crăciun.'},
+    {q:'Din ce parte a plantei se formează fructul?', a:['Din rădăcină','Din floare','Din tulpină','Din frunză'], c:1, h:'Mai întâi mărul înflorește, apoi apar merele.'},
+    {q:'Ce parte a plantei mâncăm la morcov?', a:['Rădăcina','Floarea','Frunzele','Semințele'], c:0, h:'Morcovul crește în pământ.'},
+    {q:'Cine ajută florile ducând polenul de la una la alta?', a:['Albinele','Peștii','Melcii','Râmele'], c:0, h:'Zboară din floare în floare și fac miere.'},
+    {q:'Din ce plantă făceau egiptenii foi de scris?', a:['Din papirus','Din grâu','Din cactus','Din brad'], c:0, h:'Crește pe malul Nilului, iar numele ei seamănă cu „paper”.'},
+    {q:'În ce anotimp cad frunzele copacilor?', a:['Primăvara','Vara','Toamna','Niciodată'], c:2, h:'Atunci frunzele se fac galbene și ruginii.'},
+    {q:'Care dintre acestea este o legumă?', a:['Mărul','Morcovul','Para','Cireașa'], c:1, h:'Celelalte trei sunt fructe și cresc în pom.'},
+    {q:'Unde își păstrează cactusul apa?', a:['În tulpina groasă','În flori','În țepi','În nisip'], c:0, h:'De aceea este atât de gros și cărnos.'},
+    {q:'Ce aer bun ne dau plantele?', a:['Fum','Oxigen','Abur','Praf'], c:1, h:'Este aerul curat de care avem nevoie ca să respirăm.'},
+    {q:'Ce fruct face stejarul?', a:['Ghinda','Nuca','Castana','Conul'], c:0, h:'Le plac mult veverițelor și mistreților.'}
+   ]}
+];
+
+/* Unde stă fiecare personaj pe hartă (în pătrățele) */
+const NPCS = [
+  {id:'lion', x:14, y:5.6, kind:'mayor'},
+  {id:'mole', x:8.5, y:5.6, kind:'station'},
+  {id:'owl', x:20.5, y:6.6, kind:'station'},
+  {id:'hedgehog', x:8.5, y:11.6, kind:'station'},
+  {id:'parrot', x:15.6, y:13.5, kind:'station'},
+  {id:'cat', x:5.5, y:6.5, kind:'suspect'},
+  {id:'jackal', x:17.6, y:6.5, kind:'suspect'},
+  {id:'camel', x:23.5, y:6.5, kind:'suspect'},
+  {id:'fennec', x:10.4, y:9.6, kind:'suspect'},
+  {id:'falcon', x:23.5, y:9.6, kind:'suspect'},
+  {id:'ibis', x:12.4, y:11.6, kind:'suspect'}
+];
+
+/* =====================================================================
+   MOTORUL JOCULUI
+   ===================================================================== */
+const T = 48, MW = 28, MH = 18, INK = '#1d2a44', GOLD = '#f2b01e', PAPER = '#fff3d4';
+const $ = id => document.getElementById(id);
+const cv = $('game'), cx = cv.getContext('2d');
+const SAVE_KEY = 'secretul-piramidei-v1';
+const START = {x:14*T, y:10.6*T};
+const MAXSTARS = STATIONS.length*3;
+const pickCulprit = () => SUSPECTS[Math.floor(Math.random()*SUSPECTS.length)].id;
+const fresh = () => ({clues:[], stars:0, crossed:[], won:false, intro:false, x:START.x, y:START.y, culprit:pickCulprit()});
+
+let S = fresh();
+let mode = 'play';            // play | talk | quiz | menu
+const keys = {up:false,down:false,left:false,right:false};
+let facing = 1, walkT = 0, near = null, clock = 0;
+const culprit = () => SUSPECTS.find(s => s.id===S.culprit) || SUSPECTS[0];
+const clueOf = st => st.clue[culprit()[st.attr]];
+
+/* ---------- harta ---------- */
+const G = Array.from({length:MH}, () => new Array(MW).fill(0)); // 0 nisip, 1 drum, 2 apă, 3 decor solid, 4 clădire
+const rect = (x0,y0,x1,y1,v) => { for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) G[y][x]=v; };
+const BUILDINGS = [
+  {type:'pyr',x:11,y:1,w:6,h:4,sign:'MAREA PIRAMIDĂ',door:true},
+  {type:'pyr',x:3,y:1,w:4,h:3},
+  {type:'pyr',x:22,y:1,w:4,h:3},
+  {type:'house',x:19,y:3,w:3,h:3,wall:'#ead2a0',top:'#2d6f8f',sign:'OBSERVATOR'},
+  {type:'house',x:19,y:10,w:3,h:3,wall:'#f0dcae',top:'#c2413a',sign:'BAZAR'}
+];
+rect(1,7,26,8,1); rect(13,5,14,13,1); rect(11,6,16,9,1); rect(12,5,15,5,1);
+rect(8,5,8,6,1); rect(20,6,20,6,1); rect(8,9,8,11,1); rect(18,9,18,12,1);
+rect(1,15,26,16,2); rect(3,10,6,12,2);
+BUILDINGS.forEach(b => rect(b.x,b.y,b.x+b.w-1,b.y+b.h-1,4));
+const rnd = (x,y) => { let h=(x*374761393 + y*668265263)>>>0; h=((h^(h>>>13))*1274126177)>>>0; return ((h^(h>>>16))>>>0)/4294967296; };
+const DECOR = [];
+for(let y=0;y<MH;y++) for(let x=0;x<MW;x++){
+  const edge = x===0||y===0||x===MW-1||y===MH-1;
+  if(G[y][x]!==0) continue;
+  let free = true, water = false;
+  for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+    const v=(G[y+dy]||[])[x+dx]; if(v===1||v===4) free=false; if(v===2) water=true;
+  }
+  if(NPCS.some(n => Math.abs(n.x-(x+.5))<1.6 && Math.abs(n.y-(y+.5))<1.6)) free=false;
+  const r = rnd(x,y);
+  if(edge){ G[y][x]=3; DECOR.push({x,y,kind:'rock'}); }
+  else if(free && water && r<0.6){ G[y][x]=3; DECOR.push({x,y,kind:'palm'}); }
+  else if(free && !water && r<0.2){ G[y][x]=3; DECOR.push({x,y,kind: r<0.07?'palm': r<0.14?'cactus':'rock'}); }
+}
+const WELL = {x:14*T, y:7.9*T, r:22};   // obeliscul din piață
+const solidAt = (px,py) => { const tx=Math.floor(px/T), ty=Math.floor(py/T); if(tx<0||ty<0||tx>=MW||ty>=MH) return true; return G[ty][tx]>=2; };
+
+/* ---------- desen: personaje ---------- */
+function el(c,x,y,rx,ry,fill,rot){ c.beginPath(); c.ellipse(x,y,rx,ry,rot||0,0,Math.PI*2); c.fillStyle=fill; c.fill(); }
+function tri(c,x1,y1,x2,y2,x3,y3,fill){ c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); c.lineTo(x3,y3); c.closePath(); c.fillStyle=fill; c.fill(); }
+function drawCritter(c, s, walk){
+  const k = s.scale||1, dark = s.dark||'rgba(40,30,50,.55)';
+  c.save(); c.scale(k,k);
+  if(s.legs==='long'){
+    c.strokeStyle=s.legColor; c.lineWidth=3; c.lineCap='round';
+    c.beginPath(); c.moveTo(-4,0); c.lineTo(-4,-16); c.moveTo(4,0); c.lineTo(4,-16); c.stroke();
+    c.translate(0,-13);
+  } else {
+    const st = walk ? Math.sin(walk*14)*2.5 : 0;
+    el(c,-6,-2-Math.max(0,st),5,3.6,dark); el(c,6,-2-Math.max(0,-st),5,3.6,dark);
+  }
+  if(walk) c.translate(0, Math.abs(Math.sin(walk*14))*-1.6);
+  if(s.tail==='bushy'){ el(c,-16,-15,7,13,s.fur,-.7); el(c,-22,-22,4.5,5.5,s.tip,-.7); }
+  if(s.tail==='long'){ c.strokeStyle=s.fur; c.lineWidth=4; c.lineCap='round'; c.beginPath(); c.moveTo(-10,-6); c.quadraticCurveTo(-24,-8,-19,-26); c.stroke(); }
+  if(s.tail==='short'){ el(c,-12,-7,4.5,3.2,s.fur,.4); }
+  if(s.tail==='feather'){ tri(c,-8,-10,-22,-2,-18,-16,s.tip); }
+  if(s.spikes){
+    c.beginPath(); c.moveTo(0,-24);
+    for(let i=0;i<=16;i++){ const a=(105+i*15)*Math.PI/180, r=i%2?27:20; c.lineTo(-2+Math.cos(a)*r,-24+Math.sin(a)*r); }
+    c.closePath(); c.fillStyle=s.spikes; c.fill();
+  }
+  if(s.hump){ el(c,-9,-25,9,9,s.fur); }
+  el(c,0,-14,13,14,s.fur); el(c,0,-11,8,9.5,s.belly);
+  if(s.wings){ el(c,-12,-15,4.6,11,s.wings,.22); el(c,12,-15,4.6,11,s.wings,-.22); }
+  if(s.mane){ el(c,0,-34,19,18,s.mane); }
+  const ec = s.earColor||s.fur;
+  if(s.ears==='round'){ el(c,-10,-44,5.2,5.2,ec); el(c,10,-44,5.2,5.2,ec); el(c,-10,-44,2.4,2.4,s.belly); el(c,10,-44,2.4,2.4,s.belly); }
+  if(s.ears==='pointy'){ tri(c,-13,-40,-10,-56,-3,-44,ec); tri(c,13,-40,10,-56,3,-44,ec); tri(c,-10.5,-43,-9.6,-51,-6,-44,'#3a2a2a'); tri(c,10.5,-43,9.6,-51,6,-44,'#3a2a2a'); }
+  if(s.ears==='huge'){ tri(c,-13,-38,-17,-66,-1,-45,ec); tri(c,13,-38,17,-66,1,-45,ec); tri(c,-11,-42,-14.5,-60,-4,-45,s.earInner); tri(c,11,-42,14.5,-60,4,-45,s.earInner); }
+  if(s.ears==='tuft'){ tri(c,-12,-40,-11,-51,-4,-44,ec); tri(c,12,-40,11,-51,4,-44,ec); }
+  if(s.scarf){ el(c,0,-23.5,11,3.8,s.scarf); tri(c,4,-23,10,-22,9,-12,s.scarf); }
+  el(c,0,-34,13,12,s.head||s.fur);
+  if(s.mask==='owl'){ el(c,-5.5,-36,6.2,6.2,'#f3e3c0'); el(c,5.5,-36,6.2,6.2,'#f3e3c0'); }
+  const er = s.mask==='owl' ? 3.2 : 2.5;
+  el(c,-5.5,-36,er,er,'#ffffff'); el(c,5.5,-36,er,er,'#ffffff');
+  el(c,-5.1,-35.8,er*.58,er*.62,'#1d1a26'); el(c,5.9,-35.8,er*.58,er*.62,'#1d1a26');
+  if(s.snout==='muzzle'){ el(c,0,-29.5,5.6,4.2,s.muzzle||s.belly); el(c,0,-31.4,2.3,1.7,'#2a2026'); }
+  if(s.snout==='beak'){ tri(c,-3.4,-32.5,3.4,-32.5,0,-26,s.beak); }
+  if(s.snout==='longbeak'){ c.strokeStyle=s.beak; c.lineWidth=3.4; c.lineCap='round'; c.beginPath(); c.moveTo(6,-32); c.quadraticCurveTo(22,-32,25,-21); c.stroke(); }
+  if(s.snout==='hook'){ el(c,0,-30,4.2,5.2,s.beak); el(c,0,-32.4,3.4,2.2,'#55505e'); }
+  if(s.hat){ el(c,0,-44.5,12.5,6.4,s.hat); c.fillStyle=s.hat; c.fillRect(-12.5,-45,25,3.4); el(c,9,-41.4,8.5,2.8,'rgba(20,15,40,.55)'); el(c,0,-50.5,2.2,1.8,'#fff3d4'); }
+  c.restore();
+}
+function portrait(canvas, id){
+  const c = canvas.getContext('2d'), w = canvas.width, s = CHARS[id].look;
+  c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,w,w);
+  const k = w/84*1.2/Math.max(1,(s.scale||1)*(s.legs==='long'?1.12:1)*(s.ears==='huge'?1.25:1));
+  c.setTransform(k,0,0,k,w/2,w*0.94);
+  drawCritter(c, s, 0);
+}
+
+/* ---------- desen: lume ---------- */
+function roundRect(x,y,w,h,r){ cx.beginPath(); cx.moveTo(x+r,y); cx.arcTo(x+w,y,x+w,y+h,r); cx.arcTo(x+w,y+h,x,y+h,r); cx.arcTo(x,y+h,x,y,r); cx.arcTo(x,y,x+w,y,r); cx.closePath(); }
+function drawDecor(d){
+  const x=(d.x+.5)*T, y=(d.y+1)*T-6, v=rnd(d.x+9,d.y+3);
+  cx.save(); cx.translate(x,y);
+  if(d.kind==='rock'){
+    el(cx,0,2,20,6,'rgba(120,80,30,.25)'); el(cx,-5,-9,15,12,'#b98f5c'); el(cx,8,-6,11,9,'#a67d4f'); el(cx,-8,-13,6,4,'rgba(255,255,255,.18)');
+  } else if(d.kind==='cactus'){
+    el(cx,0,2,12,4,'rgba(120,80,30,.25)');
+    cx.strokeStyle='#3f8f5b'; cx.lineCap='round'; cx.lineWidth=11; cx.beginPath(); cx.moveTo(0,0); cx.lineTo(0,-30); cx.stroke();
+    cx.lineWidth=7; cx.beginPath(); cx.moveTo(0,-12); cx.lineTo(-11,-12); cx.lineTo(-11,-22); cx.moveTo(0,-18); cx.lineTo(11,-18); cx.lineTo(11,-28); cx.stroke();
+    if(v>.5) el(cx,0,-36,3.5,3.5,'#f27aa0');
+  } else {
+    el(cx,0,2,14,5,'rgba(120,80,30,.25)');
+    cx.strokeStyle='#8a6238'; cx.lineWidth=7; cx.lineCap='round'; cx.beginPath(); cx.moveTo(0,0); cx.quadraticCurveTo(6,-22,1,-44); cx.stroke();
+    for(let i=0;i<6;i++){ const a=(-200+i*44)*Math.PI/180; el(cx,1+Math.cos(a)*13,-46+Math.sin(a)*8,15,5,i%2?'#2f8a55':'#3c9c63',a); }
+    el(cx,1,-45,4,4,'#8a6238');
+  }
+  cx.restore();
+}
+function drawBuilding(b){
+  const x=b.x*T, y=b.y*T, w=b.w*T, h=b.h*T, by=y+h-2;
+  if(b.type==='pyr'){
+    const ax=x+w/2, ay=y-T*.55;
+    cx.fillStyle='rgba(120,80,30,.22)'; cx.beginPath(); cx.ellipse(ax,by+2,w*.52,9,0,0,Math.PI*2); cx.fill();
+    tri(cx,x,by,ax,ay,x+w,by,'#e9c267'); tri(cx,ax,ay,x+w,by,ax+w*.12,by,'#c9973f');
+    cx.strokeStyle='rgba(120,80,30,.28)'; cx.lineWidth=1.5;
+    for(let i=1;i<7;i++){ const f=i/7, yy=ay+(by-ay)*f; cx.beginPath(); cx.moveTo(ax-(w/2)*f,yy); cx.lineTo(ax+(w/2)*f,yy); cx.stroke(); }
+    tri(cx,ax-7,ay+12,ax,ay,ax+7,ay+12,GOLD);
+    if(b.door){ cx.fillStyle='#3a2a22'; cx.beginPath(); cx.moveTo(ax-15,by); cx.lineTo(ax-10,by-34); cx.lineTo(ax+10,by-34); cx.lineTo(ax+15,by); cx.closePath(); cx.fill(); }
+    if(b.sign){ cx.font='800 13px "Baloo 2",sans-serif'; cx.textAlign='center'; cx.textBaseline='middle';
+      const tw=cx.measureText(b.sign).width+16; cx.fillStyle=INK; roundRect(ax-tw/2,by-62,tw,20,6); cx.fill(); cx.fillStyle=GOLD; cx.fillText(b.sign,ax,by-51); }
+    return;
+  }
+  const ry=y+h*.34;
+  cx.fillStyle='rgba(120,80,30,.22)'; cx.fillRect(x+6,by-2,w-4,10);
+  cx.fillStyle=b.wall; cx.fillRect(x+8,ry,w-16,by-ry);
+  cx.fillStyle='rgba(120,80,30,.14)'; cx.fillRect(x+8,ry,w-16,8);
+  const n=6, sw=(w-4)/n;
+  for(let i=0;i<n;i++){ cx.fillStyle=i%2?PAPER:b.top; cx.beginPath(); cx.moveTo(x+2+i*sw,ry-8); cx.lineTo(x+2+(i+1)*sw,ry-8); cx.lineTo(x+2+(i+1)*sw,ry+12); cx.arc(x+2+(i+.5)*sw,ry+12,sw/2,0,Math.PI); cx.closePath(); cx.fill(); }
+  const dx=x+w/2-11, dy=by-36;
+  cx.fillStyle='#6b4630'; roundRect(dx,dy,22,36,10); cx.fill(); cx.fillRect(dx,dy+12,22,24);
+  cx.font='800 12px "Baloo 2",sans-serif'; cx.textAlign='center'; cx.textBaseline='middle';
+  const tw=cx.measureText(b.sign).width+14; cx.fillStyle=INK; roundRect(x+w/2-tw/2,ry+26,tw,19,6); cx.fill(); cx.fillStyle=GOLD; cx.fillText(b.sign,x+w/2,ry+36.5);
+}
+function drawGround(x0,y0,x1,y1){
+  for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+    const v=G[y][x], r=rnd(x,y);
+    cx.fillStyle = (x+y)%2 ? '#edcf8c' : '#e9c983'; cx.fillRect(x*T,y*T,T,T);
+    if(v===1){ cx.fillStyle = r<.5?'#d7b98a':'#d1b281'; cx.fillRect(x*T,y*T,T,T);
+      cx.strokeStyle='rgba(120,80,30,.18)'; cx.lineWidth=1; cx.strokeRect(x*T+.5,y*T+.5,T-1,T-1);
+      cx.beginPath(); cx.moveTo(x*T+(r<.5?16:30),y*T); cx.lineTo(x*T+(r<.5?16:30),y*T+T); cx.stroke(); }
+    else if(v===2){ cx.fillStyle=(x+y)%2?'#3f9cc4':'#46a3ca'; cx.fillRect(x*T,y*T,T,T);
+      cx.strokeStyle='rgba(255,255,255,.45)'; cx.lineWidth=2.2; cx.lineCap='round';
+      const wx=x*T+8+r*14+Math.sin(clock*1.3+x+y)*4, wy=y*T+14+r*18; cx.beginPath(); cx.moveTo(wx,wy); cx.quadraticCurveTo(wx+8,wy-5,wx+16,wy); cx.stroke();
+      if(r>.78){ cx.strokeStyle='#2f8a55'; cx.lineWidth=2.5; for(let i=0;i<3;i++){ cx.beginPath(); cx.moveTo(x*T+30+i*5,y*T+40); cx.lineTo(x*T+28+i*6,y*T+18+i*3); cx.stroke(); } } }
+    else if(r>.6){ cx.strokeStyle='rgba(160,110,50,.35)'; cx.lineWidth=2; cx.lineCap='round';
+      const sx=x*T+8+r*10, sy=y*T+16+r*20; cx.beginPath(); cx.moveTo(sx,sy); cx.quadraticCurveTo(sx+9,sy-5,sx+18,sy); cx.stroke(); }
+  }
+  // oasele de dinozaur de la locul săpăturilor
+  const bx=10.2*T, by=5.5*T; cx.strokeStyle='#fbf6e6'; cx.lineWidth=4; cx.lineCap='round';
+  cx.beginPath(); cx.moveTo(bx-26,by); cx.lineTo(bx+30,by); cx.stroke();
+  for(let i=0;i<5;i++){ cx.beginPath(); cx.moveTo(bx-18+i*10,by); cx.quadraticCurveTo(bx-14+i*10,by-18,bx-24+i*10,by-20); cx.stroke(); }
+  el(cx,bx+36,by-3,8,6,'#fbf6e6');
+}
+function drawObelisk(){
+  const x=WELL.x, y=WELL.y;
+  el(cx,x,y+4,24,8,'rgba(120,80,30,.28)'); cx.fillStyle='#b9a58a'; cx.fillRect(x-17,y-8,34,12);
+  cx.fillStyle='#d9c7a6'; cx.beginPath(); cx.moveTo(x-10,y-8); cx.lineTo(x-6,y-78); cx.lineTo(x+6,y-78); cx.lineTo(x+10,y-8); cx.closePath(); cx.fill();
+  cx.fillStyle='rgba(120,80,30,.18)'; cx.beginPath(); cx.moveTo(x+2,y-8); cx.lineTo(x+2,y-78); cx.lineTo(x+6,y-78); cx.lineTo(x+10,y-8); cx.closePath(); cx.fill();
+  tri(cx,x-6,y-78,x,y-92,x+6,y-78,GOLD);
+  cx.fillStyle='#8a7354'; for(let i=0;i<4;i++){ cx.fillRect(x-3,y-66+i*14,6,3); el(cx,x,y-58+i*14,2.2,2.2,'#8a7354'); }
+}
+function tag(text,x,y,bg,fg){
+  cx.font='700 13px "Baloo 2",sans-serif'; cx.textAlign='center'; cx.textBaseline='middle';
+  const w=cx.measureText(text).width+14; cx.fillStyle=bg; roundRect(x-w/2,y-10,w,20,10); cx.fill();
+  cx.fillStyle=fg; cx.fillText(text,x,y+1);
+}
+function stationOf(npcId){ return STATIONS.find(s => s.npc===npcId); }
+function draw(){
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  const vw = cv.clientWidth, vh = cv.clientHeight;
+  if(cv.width!==Math.round(vw*dpr) || cv.height!==Math.round(vh*dpr)){ cv.width=Math.round(vw*dpr); cv.height=Math.round(vh*dpr); }
+  const z = Math.max(.75, Math.min(2.2, Math.min(vw/(9*T), vh/(8*T))));
+  const ww = vw/z, wh = vh/z;
+  let camX = S.x - ww/2, camY = S.y - 20 - wh/2;
+  camX = ww>=MW*T ? (MW*T-ww)/2 : Math.max(0, Math.min(MW*T-ww, camX));
+  camY = wh>=MH*T ? (MH*T-wh)/2 : Math.max(0, Math.min(MH*T-wh, camY));
+  cx.setTransform(1,0,0,1,0,0); cx.fillStyle='#c9a35c'; cx.fillRect(0,0,cv.width,cv.height);
+  cx.setTransform(dpr*z,0,0,dpr*z,-camX*dpr*z,-camY*dpr*z);
+  const x0=Math.max(0,Math.floor(camX/T)), y0=Math.max(0,Math.floor(camY/T)), x1=Math.min(MW-1,Math.floor((camX+ww)/T)), y1=Math.min(MH-1,Math.floor((camY+wh)/T));
+  drawGround(x0,y0,x1,y1);
+  const items = [];
+  DECOR.forEach(d => { if(d.x>=x0-2&&d.x<=x1+2&&d.y>=y0-3&&d.y<=y1+1) items.push({y:(d.y+1)*T-6, f:()=>drawDecor(d)}); });
+  BUILDINGS.forEach(b => items.push({y:(b.y+b.h)*T, f:()=>drawBuilding(b)}));
+  items.push({y:WELL.y+4, f:drawObelisk});
+  NPCS.forEach(n => items.push({y:n.y*T, f:()=>{
+    const x=n.x*T, y=n.y*T, ch=CHARS[n.id], k=ch.look.scale||1, top = y-(ch.look.legs==='long'?80:ch.look.ears==='huge'?80:66)*k;
+    el(cx,x,y+1,14*k,5*k,'rgba(120,80,30,.3)');
+    cx.save(); cx.translate(x,y); if(S.x<x-4) cx.scale(-1,1); drawCritter(cx,ch.look,0); cx.restore();
+    tag(ch.name, x, y+15, near===n?GOLD:'rgba(20,48,79,.8)', near===n?INK:PAPER);
+    let mark = null;
+    if(n.kind==='station' && !S.clues.includes(stationOf(n.id).id)) mark='!';
+    if(n.kind==='mayor' && S.clues.length>=STATIONS.length && !S.won) mark='?';
+    if(mark){ const by = top-12+Math.sin(clock*4+n.x)*3; el(cx,x,by,11,11,'#e2503c'); tri(cx,x-5,by+8,x+5,by+8,x,by+16,'#e2503c');
+      cx.fillStyle='#ffffff'; cx.font='800 17px "Baloo 2",sans-serif'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText(mark,x,by+1); }
+  }}));
+  items.push({y:S.y, f:()=>{ el(cx,S.x,S.y+1,14,5,'rgba(120,80,30,.3)'); cx.save(); cx.translate(S.x,S.y); cx.scale(facing,1); drawCritter(cx,CHARS.bear.look,walkT); cx.restore(); }});
+  items.sort((a,b)=>a.y-b.y).forEach(i=>i.f());
+}
+
+/* ---------- mișcare ---------- */
+function blocked(x,y){
+  if(solidAt(x-11,y-8)||solidAt(x+11,y-8)||solidAt(x-11,y+3)||solidAt(x+11,y+3)) return true;
+  if(Math.hypot(x-WELL.x,(y-WELL.y)*1.6)<WELL.r+8) return true;
+  return NPCS.some(n => Math.hypot(x-n.x*T, y-n.y*T) < 26);
+}
+function update(dt){
+  clock += dt;
+  if(mode!=='play'){ walkT=0; return; }
+  let dx=(keys.right?1:0)-(keys.left?1:0), dy=(keys.down?1:0)-(keys.up?1:0);
+  if(dx||dy){
+    const l=Math.hypot(dx,dy), sp=165*dt; dx=dx/l*sp; dy=dy/l*sp;
+    if(dx && !blocked(S.x+dx,S.y)) S.x+=dx;
+    if(dy && !blocked(S.x,S.y+dy)) S.y+=dy;
+    if(dx) facing = dx>0?1:-1;
+    walkT += dt;
+  } else walkT = 0;
+  let best=null, bd=1.45*T;
+  NPCS.forEach(n => { const d=Math.hypot(S.x-n.x*T,S.y-n.y*T); if(d<bd){bd=d;best=n;} });
+  if(best!==near){ near=best; refreshAct(); }
+}
+function refreshAct(){
+  const b=$('btnAct');
+  if(mode==='play' && near){ b.hidden=false; b.innerHTML='Vorbește cu '+CHARS[near.id].name+'<small>'+CHARS[near.id].role+'</small>'; }
+  else b.hidden=true;
+}
+function setMode(m){ mode=m; if(m!=='play'){ keys.up=keys.down=keys.left=keys.right=false; document.querySelectorAll('#pad button').forEach(b=>b.classList.remove('on')); } $('pad').hidden = m!=='play'; refreshAct(); }
+
+/* ---------- replici ---------- */
+let queue=[], after=null;
+function say(lines, then){ queue=lines.slice(); after=then||null; setMode('talk'); $('dialog').hidden=false; nextLine(); }
+function nextLine(){
+  if(!queue.length){ $('dialog').hidden=true; const f=after; after=null; setMode('play'); if(f) f(); return; }
+  const l=queue.shift(), ch=CHARS[l.who];
+  portrait($('dPic'), l.who);
+  $('dWho').innerHTML = ch.name+'<span>'+ch.role+'</span>';
+  $('dText').textContent = l.text;
+  $('dNext').textContent = queue.length ? 'Mai departe' : 'Am înțeles';
+  $('dNext').focus({preventScroll:true});
+}
+$('dNext').addEventListener('click', nextLine);
+
+/* ---------- probe ---------- */
+const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+let quiz=null;
+function startQuiz(st){ quiz={st, list:shuffle(st.questions).slice(0,3), i:0, first:true}; setMode('quiz'); $('quiz').hidden=false; showQuestion(); }
+function showQuestion(){
+  const q=quiz.list[quiz.i]; quiz.first=true;
+  $('qTag').textContent=quiz.st.subject; $('qStep').textContent='Întrebarea '+(quiz.i+1)+' din '+quiz.list.length;
+  $('qText').textContent=q.q; $('qFeed').innerHTML='';
+  const box=$('qAns'); box.innerHTML=''; box.dataset.lock='';
+  shuffle(q.a.map((t,i)=>({t,i}))).forEach((o,n)=>{
+    const b=document.createElement('button'); b.type='button'; b.innerHTML='<i>'+(n+1)+'</i><span></span>'; b.lastChild.textContent=o.t;
+    b.addEventListener('click',()=>answer(b,o.i===q.c,q)); box.appendChild(b);
+  });
+}
+function answer(btn, ok, q){
+  if(btn.classList.contains('no') || $('qAns').dataset.lock==='1') return;
+  const feed=$('qFeed');
+  if(ok){
+    btn.classList.add('ok'); $('qAns').dataset.lock='1';
+    if(quiz.first){ S.stars++; hud(); }
+    const last = quiz.i===quiz.list.length-1;
+    feed.innerHTML='<span class="good">'+(quiz.first?'Corect din prima! Ai câștigat o stea.':'Corect! Bravo că n-ai renunțat.')+'</span>';
+    const nx=document.createElement('button'); nx.className='go'; nx.type='button'; nx.textContent= last?'Vezi indiciul':'Următoarea întrebare';
+    nx.addEventListener('click',()=>{ if(last) endQuiz(); else { quiz.i++; showQuestion(); } });
+    feed.appendChild(nx); nx.focus({preventScroll:true});
+  } else {
+    quiz.first=false; btn.classList.add('no'); btn.disabled=true;
+    feed.innerHTML='<span class="hint"></span>'; feed.firstChild.textContent='Mai încearcă. Ajutor: '+q.h;
+  }
+}
+function endQuiz(){
+  const st=quiz.st, cl=clueOf(st); quiz=null; $('quiz').hidden=true;
+  if(!S.clues.includes(st.id)) S.clues.push(st.id);
+  hud(); save();
+  const left = STATIONS.length - S.clues.length;
+  say([{who:st.npc, text:cl.text},
+       {who:'bear', text: left ? 'Notez în carnet: „'+cl.title+'”. Mai am de găsit '+left+(left===1?' indiciu.':' indicii.') : 'Notez în carnet: „'+cl.title+'”. Am toate cele patru indicii! Mă uit în carnet, apoi merg la leul Ramses.'}]);
+}
+
+/* ---------- discuții ---------- */
+function talk(n){
+  if(n.kind==='station'){
+    const st=stationOf(n.id);
+    if(S.clues.includes(st.id)) return say([{who:n.id, text:'Ți-am spus deja ce știu. '+clueOf(st).text}]);
+    return say([{who:n.id, text:st.hello}], ()=>startQuiz(st));
+  }
+  if(n.kind==='suspect'){ const su=SUSPECTS.find(s=>s.id===n.id); return say([{who:n.id, text:su.line}]); }
+  if(S.won) return say([{who:'lion', text:'Scarabeul de Aur strălucește din nou în piramidă, datorită ție. Deschide carnetul dacă vrei un mister nou!'}]);
+  const left=STATIONS.length-S.clues.length;
+  if(left>0) return say([{who:'lion', text:'Mai ai de găsit '+left+(left===1?' indiciu':' indicii')+'. Caută martorii care au semnul „!” deasupra capului și deschide carnetul ca să vezi ce ai aflat.'}]);
+  say([{who:'lion', text:'Ai toate cele patru indicii. Gândește-te bine: pe cine acuzi?'}], openAccuse);
+}
+function susButton(su, onClick){
+  const ch=CHARS[su.id], b=document.createElement('button'); b.type='button';
+  const c=document.createElement('canvas'); c.width=c.height=144; portrait(c,su.id);
+  b.appendChild(c); b.appendChild(document.createTextNode(ch.name+', '+ch.role));
+  const sm=document.createElement('small'); sm.textContent=su.traits; b.appendChild(sm);
+  b.addEventListener('click',()=>onClick(b)); return b;
+}
+function whyNot(su){
+  const cu=culprit(), st=STATIONS.find(s => su[s.attr]!==cu[s.attr]);
+  return 'Nu se potrivește. '+st.say[cu[st.attr]]+' Dar '+CHARS[su.id].name+' '+st.has[su[st.attr]]+'.';
+}
+function openAccuse(){
+  const box=$('aSus'); box.innerHTML='';
+  SUSPECTS.forEach(su => box.appendChild(susButton(su, ()=>{
+    $('accuse').hidden=true;
+    if(su.id===S.culprit){
+      S.won=true; save();
+      const nm=CHARS[su.id].name;
+      say([{who:'lion', text:nm+'! Toate cele patru indicii se potrivesc.'},
+           {who:su.id, text:'Eu am fost... Am vrut doar să văd Scarabeul de Aur de aproape, cât strălucește. Apoi mi-a fost rușine să-l aduc înapoi. Îmi pare rău!'},
+           {who:'bear', text:'Ai greșit, dar ai spus adevărul. Unde este scarabeul?'},
+           {who:su.id, text:'L-am ascuns sub palmierul de lângă Nil. Îl aduc chiar acum și promit să ajut la paza piramidei.'},
+           {who:'lion', text:'Așa să fie. Mulțumim, detective Martin! Ai gândit ca un detectiv adevărat.'}], showEnding);
+    }
+    else say([{who:'lion', text:whyNot(su)},{who:'bear', text:'Ai dreptate. Mă mai uit o dată în carnet.'}]);
+  })));
+  setMode('menu'); $('accuse').hidden=false;
+}
+$('aBack').addEventListener('click',()=>{ $('accuse').hidden=true; setMode('play'); });
+function showEnding(){
+  $('endStars').textContent = S.stars+' / '+MAXSTARS+' stele';
+  $('endRank').textContent = S.stars>=MAXSTARS-1 ? 'Rang: Detectiv-șef' : S.stars>=MAXSTARS-4 ? 'Rang: Detectiv priceput' : 'Rang: Detectiv ucenic';
+  setMode('menu'); $('ending').hidden=false;
+}
+$('endAgain').addEventListener('click',()=>{ $('ending').hidden=true; reset(); });
+
+/* ---------- carnet ---------- */
+function openCarnet(){
+  if(mode!=='play') return;
+  const ul=$('cClues'); ul.innerHTML='';
+  STATIONS.forEach(st=>{
+    const li=document.createElement('li');
+    if(S.clues.includes(st.id)){ const cl=clueOf(st), b=document.createElement('b'); b.textContent=cl.title; li.appendChild(b); li.appendChild(document.createTextNode(cl.text)); }
+    else { li.className='miss'; li.textContent='Indiciu negăsit. Caută-l pe '+CHARS[st.npc].name+', '+CHARS[st.npc].role+' ('+st.subject+').'; }
+    ul.appendChild(li);
+  });
+  const box=$('cSus'); box.innerHTML='';
+  SUSPECTS.forEach(su=>{
+    const b=susButton(su, btn=>{ const i=S.crossed.indexOf(su.id); if(i<0) S.crossed.push(su.id); else S.crossed.splice(i,1); btn.classList.toggle('x'); btn.setAttribute('aria-pressed', i<0); save(); });
+    if(S.crossed.includes(su.id)) b.classList.add('x'); b.setAttribute('aria-pressed', S.crossed.includes(su.id)); box.appendChild(b);
+  });
+  $('cReset').textContent='Mister nou, cu alt hoț'; $('cReset').dataset.sure='';
+  setMode('menu'); $('carnet').hidden=false;
+}
+$('btnCarnet').addEventListener('click', openCarnet);
+$('cClose').addEventListener('click',()=>{ $('carnet').hidden=true; setMode('play'); });
+$('cReset').addEventListener('click',e=>{
+  const b=e.currentTarget;
+  if(b.dataset.sure!=='1'){ b.dataset.sure='1'; b.textContent='Sigur? Apasă încă o dată'; return; }
+  $('carnet').hidden=true; reset();
+});
+
+/* ---------- stare ---------- */
+function hud(){ $('hudClues').textContent=S.clues.length; $('hudStars').textContent=S.stars; }
+function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
+function reset(){ const old=S.culprit; S=fresh(); if(S.culprit===old) S.culprit=SUSPECTS[(SUSPECTS.findIndex(s=>s.id===old)+1+Math.floor(Math.random()*(SUSPECTS.length-1)))%SUSPECTS.length].id; facing=1; hud(); save(); setMode('play'); begin(); }
+function begin(){ if(!S.intro) say(STORY.intro, ()=>{ S.intro=true; save(); }); }
+function start(data){
+  let d = data && Array.isArray(data.clues) ? data : null;
+  if(!d){ try{ d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null'); }catch(e){ d=null; } }
+  if(d && Array.isArray(d.clues) && SUSPECTS.some(s=>s.id===d.culprit)){
+    S = Object.assign(S, d);
+    S.clues = S.clues.filter(id => STATIONS.some(s=>s.id===id));
+    if(typeof S.x!=='number' || blocked(S.x,S.y)){ S.x=START.x; S.y=START.y; }
+  }
+  hud(); setMode('play'); begin();
+  let last=performance.now();
+  (function loop(now){ const dt=Math.min(.05,(now-last)/1000); last=now; update(dt); draw(); requestAnimationFrame(loop); })(last);
+  setInterval(()=>{ if(mode==='play') save(); }, 5000);
+}
+
+/* ---------- comenzi ---------- */
+const KEYMAP = {ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right'};
+window.addEventListener('keydown',e=>{
+  if(mode==='play'){
+    if(KEYMAP[e.key]){ keys[KEYMAP[e.key]]=true; e.preventDefault(); }
+    else if((e.key===' '||e.key==='Enter'||e.key==='e'||e.key==='E') && near && document.activeElement.tagName!=='BUTTON'){ e.preventDefault(); talk(near); }
+    else if(e.key==='c'||e.key==='C') openCarnet();
+  } else if(mode==='quiz' && /^[1-4]$/.test(e.key)){ const b=$('qAns').children[+e.key-1]; if(b) b.click(); }
+});
+window.addEventListener('keyup',e=>{ if(KEYMAP[e.key]) keys[KEYMAP[e.key]]=false; });
+window.addEventListener('blur',()=>{ keys.up=keys.down=keys.left=keys.right=false; });
+[['pU','up'],['pD','down'],['pL','left'],['pR','right']].forEach(([id,k])=>{
+  const b=$(id), on=e=>{ e.preventDefault(); if(mode==='play'){ keys[k]=true; b.classList.add('on'); } }, off=()=>{ keys[k]=false; b.classList.remove('on'); };
+  b.addEventListener('pointerdown',on); ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,off));
+  b.addEventListener('contextmenu',e=>e.preventDefault());
+});
+$('btnAct').addEventListener('click',()=>{ if(mode==='play' && near) talk(near); });
+
+window.claude?.hot?.snapshot?.(() => S);
+if(window.claude?.hot?.ready) window.claude.hot.ready(start); else start(window.claude?.hot?.data ?? {});
+</script>
+</body>
+</html>
